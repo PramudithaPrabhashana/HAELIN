@@ -7,7 +7,7 @@ public class MedRec {
     private String riskStatus;
     private String date;
     private String symptoms;
-    private double predScore;
+    private Double predScore;
 
     public MedRec() {}
 
@@ -36,7 +36,7 @@ public class MedRec {
     public String getSymptoms() { return symptoms; }
     public void setSymptoms(String symptoms) { this.symptoms = symptoms; }
 
-    public double getPredScore() { return predScore; }
+    public Double getPredScore() { return predScore; }
     public void setPredScore(double predScore) { this.predScore = predScore; }
 
 }

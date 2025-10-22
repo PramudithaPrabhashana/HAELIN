@@ -16,22 +16,27 @@ public class MedRecController {
     @Autowired
     private MedRecService medRecService;
 
-    @PostMapping
-    public String createOrUpdateRecord(@RequestBody MedRec medRec) throws ExecutionException, InterruptedException {
-        return medRecService.saveRecord(medRec);
+    @PostMapping("/add")
+    public String createRecord(@RequestBody MedRec medRec) throws ExecutionException, InterruptedException {
+        return medRecService.createRecord(medRec);
     }
 
-    @GetMapping
+    @PutMapping("/update/{id}")
+    public String updateRecord(@PathVariable String id, @RequestBody MedRec medRec)
+            throws ExecutionException, InterruptedException {
+        return medRecService.updateRecord(id, medRec);
+    }
+    @GetMapping("/all")
     public List<MedRec> getAllRecords() throws ExecutionException, InterruptedException {
         return medRecService.getAllRecords();
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("{id}")
     public MedRec getRecordById(@PathVariable String id) throws ExecutionException, InterruptedException {
         return medRecService.getRecordById(id);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("delete/{id}")
     public String deleteRecord(@PathVariable String id) {
         return medRecService.deleteRecord(id);
     }

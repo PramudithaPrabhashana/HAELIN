@@ -14,19 +14,47 @@ public class MedRecService {
 
     private static final String COLLECTION_NAME = "medical_records";
 
-    // Create or Update
-    public String saveRecord(MedRec medRec) throws ExecutionException, InterruptedException {
+    // Create record
+    public String createRecord(MedRec medRec) throws ExecutionException, InterruptedException {
         Firestore db = FirestoreClient.getFirestore();
 
-        if (medRec.getMedID() == null || medRec.getMedID().isEmpty()) {
-            medRec.setMedID(UUID.randomUUID().toString());
-        }
+        // Generate new ID for each new record
+        String newId = UUID.randomUUID().toString();
+        medRec.setMedID(newId);
 
         ApiFuture<WriteResult> writeResult = db.collection(COLLECTION_NAME)
-                .document(medRec.getMedID())
+                .document(newId)
                 .set(medRec);
 
-        return "Record saved at: " + writeResult.get().getUpdateTime();
+        return "New record created at: " + writeResult.get().getUpdateTime();
+    }
+
+    //Update
+    public String updateRecord(String id, MedRec medRec) throws ExecutionException, InterruptedException {
+        Firestore db = FirestoreClient.getFirestore();
+        DocumentReference docRef = db.collection(COLLECTION_NAME).document(id);
+
+        ApiFuture<DocumentSnapshot> future = docRef.get();
+        DocumentSnapshot document = future.get();
+
+        if (!document.exists()) {
+            return "Record with ID " + id + " not found.";
+        }
+
+        Map<String, Object> updates = new HashMap<>();
+
+        if (medRec.getDiagnosis() != null) updates.put("diagnosis", medRec.getDiagnosis());
+        if (medRec.getRiskStatus() != null) updates.put("riskStatus", medRec.getRiskStatus());
+        if (medRec.getDate() != null) updates.put("date", medRec.getDate());
+        if (medRec.getSymptoms() != null) updates.put("symptoms", medRec.getSymptoms());
+        if (medRec.getPredScore() != null) updates.put("predScore", medRec.getPredScore());
+
+        if (updates.isEmpty()) {
+            return "No fields to update for record ID " + id;
+        }
+
+        ApiFuture<WriteResult> writeResult = docRef.update(updates);
+        return "Record updated at: " + writeResult.get().getUpdateTime();
     }
 
     // Get all records
