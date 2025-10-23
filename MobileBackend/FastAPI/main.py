@@ -5,7 +5,7 @@ import joblib
 import numpy as np
 import traceback
 
-app = FastAPI(title="Chikungunya/Dengue Prediction API")
+app = FastAPI(title="Chikungunya/Chikungunya Prediction API")
 
 # Load model and scaler (make sure these files exist in same folder)
 model = joblib.load("chik_model.pkl")
@@ -33,7 +33,7 @@ class Symptoms(BaseModel):
 def health():
     return {"status": "ok"}
 
-@app.post("/predict_dengue")
+@app.post("/predict_chikun")
 def predict_dengue(data: Symptoms):
     try:
         # Create array in same feature order you trained with
