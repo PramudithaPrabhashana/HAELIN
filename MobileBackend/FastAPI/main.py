@@ -34,7 +34,7 @@ def health():
     return {"status": "ok"}
 
 @app.post("/predict_chikun")
-def predict_dengue(data: Symptoms):
+def predict_chikun(data: Symptoms):
     try:
         # Create array in same feature order you trained with
         features = np.array([[
