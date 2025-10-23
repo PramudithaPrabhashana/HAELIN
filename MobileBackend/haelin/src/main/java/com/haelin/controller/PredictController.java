@@ -28,4 +28,19 @@ public class PredictController {
                     .body("{\"error\": \"" + e.getMessage() + "\"}");
         }
     }
+
+    @PostMapping("/chikun")
+    public ResponseEntity<String> predictChikun(@RequestBody Map<String, Object> payload) {
+        try {
+            String fastApiUrl = "http://127.0.0.1:8000/predict_chikun";
+            RestTemplate restTemplate = new RestTemplate();
+
+            ResponseEntity<String> response = restTemplate.postForEntity(fastApiUrl, payload, String.class);
+            return ResponseEntity.ok(response.getBody());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("{\"error\": \"" + e.getMessage() + "\"}");
+        }
+    }
 }
