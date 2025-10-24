@@ -21,6 +21,8 @@ public class UserService {
 
     private static final String COLLECTION_NAME = "users";
 
+
+
     // Add a new user
     public String signup(User user) throws Exception {
         // Validate role
@@ -114,29 +116,32 @@ public class UserService {
         return "User " + userId + " deleted at: " + writeResult.get().getUpdateTime();
     }
 
-    public User verifyToken(String idToken) {
-        try {
-            // Verify ID token with Firebase
-            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
-            String uid = decodedToken.getUid();
+    public User verifyToken(String idToken) throws Exception {
+        // Verify the Firebase ID token
+        FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+        String uid = decodedToken.getUid();
 
-            // Fetch user document from Firestore
-            Firestore db = FirestoreClient.getFirestore();
-            DocumentSnapshot doc = db.collection("users").document(uid).get().get();
+        // Fetch the user record from Firestore
+        Firestore db = FirestoreClient.getFirestore();
+        DocumentSnapshot doc = db.collection("users").document(uid).get().get();
 
-            if (doc.exists()) {
-                return doc.toObject(User.class);
-            } else {
-                return null; // user not found
-            }
-
-        } catch (FirebaseAuthException e) {
-            System.out.println("Invalid ID token: " + e.getMessage());
-            return null;
-        } catch (InterruptedException | java.util.concurrent.ExecutionException e) {
-            e.printStackTrace();
-            return null;
+        if (!doc.exists()) {
+            throw new Exception("User not found in Firestore");
         }
+
+        User user = doc.toObject(User.class);
+
+        if (user == null) {
+            throw new Exception("Failed to parse user data");
+        }
+
+        // (Optional) check if email from token matches Firestore data
+        if (!decodedToken.getEmail().equalsIgnoreCase(user.getUserEmail())) {
+            throw new Exception("Token mismatch: user email doesn't match Firestore record");
+        }
+
+        // Return the authenticated user object
+        return user;
     }
 
 }
