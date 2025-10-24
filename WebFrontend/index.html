@@ -48,8 +48,6 @@
             margin-bottom: 10px;
         }
         
-    
-        
         .logo h1 {
             font-size: 28px;
             font-weight: 700;
@@ -190,8 +188,6 @@
             border-left: 4px solid #4a90e2;
         }
         
-        
-        
         @media (max-width: 480px) {
             .login-container {
                 width: 100%;
@@ -220,20 +216,18 @@
     <div class="login-container">
         <div class="header">
             <div class="logo">
-                
                 <h1>HAELIN</h1>
             </div>
-            
         </div>
         
         <form class="login-form" id="loginForm">
             <div class="form-group">
-                <label for="username">Admin Username</label>
+                <label for="username">Admin Email</label>
                 <div class="input-with-icon">
                     <i class="fas fa-user-shield"></i>
-                    <input type="text" id="username" name="username" placeholder="Enter admin username" required>
+                    <input type="text" id="username" name="username" placeholder="Enter admin email" required>
                 </div>
-                <div class="error-message" id="usernameError">Please enter a valid username</div>
+                <div class="error-message" id="usernameError">Please enter a valid email</div>
             </div>
             
             <div class="form-group">
@@ -251,7 +245,6 @@
             </div>
             
             <div class="remember-forgot">
-                
                 <a href="#" class="forgot-password">Forgot Password?</a>
             </div>
             
@@ -265,8 +258,41 @@
         </form>
     </div>
 
+    <!-- Load Firebase FIRST -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    
     <script>
+        // Initialize Firebase immediately after loading the scripts
+        console.log("Initializing Firebase...");
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyCF-mvHTxAcQjAFwQyXs8I4nZaCBPZ2Ln4",
+            authDomain: "haelin.firebaseapp.com",
+            projectId: "haelin",
+        };
+
+        try {
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            console.log("Firebase initialized successfully!");
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+        }
+    </script>
+
+    <script>
+        // Wait for DOM to be fully loaded AND Firebase to be ready
         document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM loaded, setting up login form...");
+            
+            // Check if Firebase is available
+            if (typeof firebase === 'undefined') {
+                console.error("Firebase is not available!");
+                alert("Error: Firebase library failed to load. Please refresh the page.");
+                return;
+            }
+
             const loginForm = document.getElementById('loginForm');
             const usernameInput = document.getElementById('username');
             const passwordInput = document.getElementById('password');
@@ -291,13 +317,13 @@
                 usernameError.style.display = 'none';
                 passwordError.style.display = 'none';
                 
-                // Validate username
+                // Validate username (should be email for Firebase Auth)
                 if (usernameInput.value.trim() === '') {
-                    usernameError.textContent = 'Please enter your admin username';
+                    usernameError.textContent = 'Please enter your email';
                     usernameError.style.display = 'block';
                     isValid = false;
-                } else if (usernameInput.value.trim().length < 3) {
-                    usernameError.textContent = 'Username must be at least 3 characters';
+                } else if (!isValidEmail(usernameInput.value.trim())) {
+                    usernameError.textContent = 'Please enter a valid email address';
                     usernameError.style.display = 'block';
                     isValid = false;
                 }
@@ -307,13 +333,13 @@
                     passwordError.textContent = 'Please enter your password';
                     passwordError.style.display = 'block';
                     isValid = false;
-                } else if (passwordInput.value.trim().length < 8) {
-                    passwordError.textContent = 'Password must be at least 8 characters';
+                } else if (passwordInput.value.trim().length < 6) {
+                    passwordError.textContent = 'Password must be at least 6 characters';
                     passwordError.style.display = 'block';
                     isValid = false;
                 }
                 
-                // If form is valid, simulate login
+                // If form is valid, proceed with Firebase login
                 if (isValid) {
                     // Show loading state
                     const loginBtn = document.querySelector('.login-btn');
@@ -321,34 +347,61 @@
                     loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
                     loginBtn.disabled = true;
                     
-                    // Simulate API call
-                    firebase.auth().signInWithEmailAndPassword(usernameInput.value, passwordInput.value)
-  .then(async (userCredential) => {
-    const user = userCredential.user;
-    const idToken = await user.getIdToken();
+                    console.log("Attempting Firebase login...");
+                    
+                    // Firebase Authentication
+                    firebase.auth().signInWithEmailAndPassword(usernameInput.value.trim(), passwordInput.value)
+                        .then(async (userCredential) => {
+                            console.log("Firebase login successful!");
+                            const user = userCredential.user;
+                            const idToken = await user.getIdToken();
 
-    // Send the token to your Spring Boot backend
-    const response = await fetch("http://localhost:8080/haelin-app/user/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken })
-    });
+                            console.log("Firebase login successful, sending token to backend...");
 
-    if (!response.ok) throw new Error("Invalid credentials or unauthorized");
+                            // Send the token to your Spring Boot backend
+                            const response = await fetch("http://localhost:8080/haelin-app/user/login", {
+                                method: "POST",
+                                headers: { 
+                                    "Content-Type": "application/json" 
+                                },
+                                body: JSON.stringify({ idToken: idToken })
+                            });
 
-    const result = await response.text();
-    console.log(result);
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                throw new Error(errorText || "Login failed");
+                            }
 
-    // Redirect to dashboard
-    window.location.href = "dashboard.html";
-  })
-  .catch((error) => {
-    passwordError.textContent = error.message;
-    passwordError.style.display = "block";
-    loginBtn.innerHTML = originalText;
-    loginBtn.disabled = false;
-  });
+                            const result = await response.json();
+                            console.log("Backend login successful:", result);
 
+                            // Store token for future requests
+                            localStorage.setItem('authToken', idToken);
+                            localStorage.setItem('user', JSON.stringify(result.user));
+                            
+                            // Redirect to dashboard
+                            window.location.href = "dashboard.html";
+                        })
+                        .catch((error) => {
+                            console.error("Login error:", error);
+                            let errorMessage = "Login failed. Please check your credentials.";
+                            
+                            // More specific error messages
+                            if (error.code === 'auth/user-not-found') {
+                                errorMessage = "No account found with this email.";
+                            } else if (error.code === 'auth/wrong-password') {
+                                errorMessage = "Incorrect password.";
+                            } else if (error.code === 'auth/invalid-email') {
+                                errorMessage = "Invalid email address.";
+                            } else if (error.message) {
+                                errorMessage = error.message;
+                            }
+                            
+                            passwordError.textContent = errorMessage;
+                            passwordError.style.display = "block";
+                            loginBtn.innerHTML = originalText;
+                            loginBtn.disabled = false;
+                        });
                 }
             });
             
@@ -364,18 +417,15 @@
                     passwordError.style.display = 'none';
                 }
             });
+            
+            // Email validation function
+            function isValidEmail(email) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return emailRegex.test(email);
+            }
+            
+            console.log("Login form setup complete!");
         });
     </script>
-    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js"></script>
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyCF-mvHTxAcQjAFwQyXs8I4nZaCBPZ2Ln4",
-    authDomain: "haelin.firebaseapp.com",
-    projectId: "haelin",
-  };
-  firebase.initializeApp(firebaseConfig);
-</script>
-
 </body>
 </html>
