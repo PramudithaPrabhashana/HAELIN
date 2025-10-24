@@ -15,16 +15,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/user")
+@CrossOrigin(origins = {"http://127.0.0.1:5580", "http://localhost:5580"})
 public class UserController {
 
     @Autowired
     private UserService userService;
-
 
     // =================== SIGNUP ===================
     @PostMapping("/signup")
@@ -42,6 +44,37 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Token verification failed: " + e.getMessage());
+        }
+    }
+
+    // =================== LOGIN - Verify Firebase Token ===================
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody UserLoginRequest request) {
+        try {
+            String idToken = request.getIdToken();
+
+            if (idToken == null || idToken.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("ID token is required");
+            }
+
+            User user = userService.verifyToken(idToken);
+
+            // Check if user is admin
+            if ("ADMIN".equalsIgnoreCase(user.getUserRole())) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "Login successful");
+                response.put("user", user);
+                response.put("isAdmin", true);
+
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("Access denied: Admin privileges required");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Login failed: " + e.getMessage());
         }
     }
 
@@ -103,13 +136,5 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Token verification failed: " + e.getMessage());
         }
-    }
-
-    // =================== LOGIN (client handles Firebase Auth) ===================
-    // Optional endpoint if you want server-side verification
-    @PostMapping("/login")
-    public String login(@RequestBody UserLoginRequest request) throws Exception {
-        // Client usually handles login with Firebase Auth directly
-        return "Use Firebase Auth client SDK to login. Send ID token to backend for verification.";
     }
 }
