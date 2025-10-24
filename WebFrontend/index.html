@@ -322,18 +322,33 @@
                     loginBtn.disabled = true;
                     
                     // Simulate API call
-                    setTimeout(function() {
-                        // In a real application, you would check credentials with a server
-                        // For demo purposes, we'll just show an alert
-                        alert('Authentication successful! Redirecting to HAELIN Admin Dashboard.');
-                        
-                        // Reset button
-                        loginBtn.innerHTML = originalText;
-                        loginBtn.disabled = false;
-                        
-                        // Clear form
-                        loginForm.reset();
-                    }, 2000);
+                    firebase.auth().signInWithEmailAndPassword(usernameInput.value, passwordInput.value)
+  .then(async (userCredential) => {
+    const user = userCredential.user;
+    const idToken = await user.getIdToken();
+
+    // Send the token to your Spring Boot backend
+    const response = await fetch("http://localhost:8080/haelin-app/user/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken })
+    });
+
+    if (!response.ok) throw new Error("Invalid credentials or unauthorized");
+
+    const result = await response.text();
+    console.log(result);
+
+    // Redirect to dashboard
+    window.location.href = "dashboard.html";
+  })
+  .catch((error) => {
+    passwordError.textContent = error.message;
+    passwordError.style.display = "block";
+    loginBtn.innerHTML = originalText;
+    loginBtn.disabled = false;
+  });
+
                 }
             });
             
@@ -351,5 +366,16 @@
             });
         });
     </script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCF-mvHTxAcQjAFwQyXs8I4nZaCBPZ2Ln4",
+    authDomain: "haelin.firebaseapp.com",
+    projectId: "haelin",
+  };
+  firebase.initializeApp(firebaseConfig);
+</script>
+
 </body>
 </html>
