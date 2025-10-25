@@ -388,9 +388,9 @@
                 </div>
                 <div class="stat-info">
                     <h3>Total Users</h3>
-                    <p>1,248</p>
+                    <p id="totalUsers">0</p>
                     <div class="stat-change positive">
-                        <i class="fas fa-arrow-up"></i> 12% from last month
+                        
                     </div>
                 </div>
             </div>
@@ -401,9 +401,9 @@
                 </div>
                 <div class="stat-info">
                     <h3>Total Cases</h3>
-                    <p>856</p>
+                    <p id="totalCases">0</p>
                     <div class="stat-change positive">
-                        <i class="fas fa-arrow-up"></i> 8% from last month
+                        
                     </div>
                 </div>
             </div>
@@ -414,9 +414,9 @@
                 </div>
                 <div class="stat-info">
                     <h3>Dengue Cases</h3>
-                    <p>542</p>
+                    <p id="dengueCases">0</p>
                     <div class="stat-change negative">
-                        <i class="fas fa-arrow-down"></i> 5% from last month
+                        
                     </div>
                 </div>
             </div>
@@ -427,9 +427,9 @@
                 </div>
                 <div class="stat-info">
                     <h3>Chikungunya Cases</h3>
-                    <p>314</p>
+                    <p id="chikungunyaCases">0</p>
                     <div class="stat-change positive">
-                        <i class="fas fa-arrow-up"></i> 3% from last month
+                        
                     </div>
                 </div>
             </div>
@@ -460,55 +460,7 @@
             </div>
         </div>
 
-        <!-- Recent Activity -->
-        <div class="recent-activity">
-            <div class="activity-header">
-                <h3>Recent Activity</h3>
-            </div>
-            <ul class="activity-list">
-                <li class="activity-item">
-                    <div class="activity-icon" style="background: rgba(74, 144, 226, 0.2); color: var(--primary);">
-                        <i class="fas fa-user-plus"></i>
-                    </div>
-                    <div class="activity-info">
-                        <h4>New user registered</h4>
-                        <p>User John Doe signed up for the platform</p>
-                    </div>
-                    <div class="activity-time">10 min ago</div>
-                </li>
-                <li class="activity-item">
-                    <div class="activity-icon" style="background: rgba(237, 137, 54, 0.2); color: var(--warning);">
-                        <i class="fas fa-file-medical"></i>
-                    </div>
-                    <div class="activity-info">
-                        <h4>New case reported</h4>
-                        <p>Dengue case reported in District A</p>
-                    </div>
-                    <div class="activity-time">1 hour ago</div>
-                </li>
-                <li class="activity-item">
-                    <div class="activity-icon" style="background: rgba(72, 187, 120, 0.2); color: var(--success);">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="activity-info">
-                        <h4>ML model updated</h4>
-                        <p>Disease detection model accuracy improved to 94.7%</p>
-                    </div>
-                    <div class="activity-time">3 hours ago</div>
-                </li>
-                <li class="activity-item">
-                    <div class="activity-icon" style="background: rgba(229, 62, 62, 0.2); color: var(--danger);">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <div class="activity-info">
-                        <h4>High risk alert</h4>
-                        <p>Chikungunya outbreak detected in Region B</p>
-                    </div>
-                    <div class="activity-time">5 hours ago</div>
-                </li>
-            </ul>
-        </div>
-    </div>
+        
 
     <script>
         // Cases Over Time Chart
@@ -586,6 +538,35 @@
             // In a real application, this would fetch new data based on the selected time range
             alert('Time range changed to: ' + this.value);
         });
+
+        async function loadDashboardStats() {
+    try {
+        const response = await fetch("http://localhost:8080/haelin-app/dashboard/stats");
+        if (!response.ok) throw new Error("Failed to fetch stats");
+
+        const data = await response.json();
+
+        // Update dashboard counts
+        document.getElementById("totalUsers").textContent = data.totalUsers;
+        document.getElementById("totalCases").textContent = data.totalCases;
+        document.getElementById("dengueCases").textContent = data.dengueCases;
+        document.getElementById("chikungunyaCases").textContent = data.chikungunyaCases;
+
+        // Update disease distribution chart
+        diseaseChart.data.datasets[0].data = [
+            data.dengueCases,
+            data.chikungunyaCases,
+            Math.max(0, data.totalCases - data.dengueCases - data.chikungunyaCases)
+        ];
+        diseaseChart.update();
+    } catch (error) {
+        console.error("Error loading dashboard stats:", error);
+    }
+}
+
+// Run on load
+loadDashboardStats();
+
     </script>
 </body>
 </html>
