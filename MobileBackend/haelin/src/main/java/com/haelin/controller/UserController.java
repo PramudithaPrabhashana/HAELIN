@@ -28,9 +28,17 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    // =================== SIGNUP ===================
-    @PostMapping("/signup")
-    public String signup(@RequestBody User user) throws Exception {
+    // =================== MOBILE SIGNUP (Patient) ===================
+    @PostMapping("/signup/mobile")
+    public String signupMobile(@RequestBody User user) throws Exception {
+        user.setUserRole("PATIENT");
+        return userService.signup(user);
+    }
+
+    // =================== WEB SIGNUP (Admin) ===================
+    @PostMapping("/signup/web")
+    public String signupWeb(@RequestBody User user) throws Exception {
+        user.setUserRole("ADMIN");
         return userService.signup(user);
     }
 
