@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_page.dart';
+import 'screens/home_dashboard.dart';
+import 'screens/signup_screen.dart';
 
 void main() {
   runApp(const HaelinApp());
@@ -22,6 +24,8 @@ class HaelinApp extends StatelessWidget {
       routes: {
         '/home': (context) => const HomeScreen(),
         '/login': (context) => const LoginPage(),
+        '/dashboard': (context) => const HomeDashboard(),
+        '/signup': (context) => const SignupScreen()
       },
     );
   }

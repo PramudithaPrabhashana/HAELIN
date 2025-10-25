@@ -9,25 +9,46 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late VideoPlayerController _videoController;
+  VideoPlayerController? _videoController;
   bool _isVideoReady = false;
+  bool _videoFailed = false;
 
   @override
   void initState() {
     super.initState();
-    _videoController = VideoPlayerController.asset('assets/phone_man.mp4')
-      ..initialize().then((_) {
-        _videoController
-          ..setLooping(true)
-          ..setVolume(0)
-          ..play();
-        setState(() => _isVideoReady = true);
-      });
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      final controller = VideoPlayerController.asset('assets/phone_man.mp4');
+      await controller.initialize();
+
+      controller
+        ..setLooping(true)
+        ..setVolume(0)
+        ..play();
+
+      if (mounted) {
+        setState(() {
+          _videoController = controller;
+          _isVideoReady = true;
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ Video initialization failed: $e");
+      if (mounted) {
+        setState(() {
+          _videoFailed = true;
+          _isVideoReady = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _videoController.dispose();
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -51,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           /// Light blue intersecting circles (behind the video)
           Positioned(
-            left: -screenWidth * 0.0015,
+            left: -screenWidth * 0.15,
             top: -screenHeight * 0.1,
             child: Container(
               width: screenWidth * 0.9,
@@ -59,13 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: const BoxDecoration(
                 color: Color(0xFFBBD3ED),
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(4, 4),
-                  ),
-                ],
               ),
             ),
           ),
@@ -78,13 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: const BoxDecoration(
                 color: Color(0xFFBBD3ED),
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 8,
-                    offset: Offset(4, 4),
-                  ),
-                ],
               ),
             ),
           ),
@@ -92,16 +99,21 @@ class _HomeScreenState extends State<HomeScreen> {
           /// Video animation (centered on circles)
           Positioned(
             top: screenHeight * 0.13,
-            child: _isVideoReady
-                ? SizedBox(
-                    width: screenWidth * 0.75,
-                    height: screenWidth * 0.75,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(40),
-                      child: VideoPlayer(_videoController),
-                    ),
+            child: _videoFailed
+                ? const Text(
+                    "⚠️ Video unsupported on this device.",
+                    style: TextStyle(color: Colors.redAccent, fontSize: 16),
                   )
-                : const CircularProgressIndicator(),
+                : _isVideoReady
+                    ? SizedBox(
+                        width: screenWidth * 0.75,
+                        height: screenWidth * 0.75,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(40),
+                          child: VideoPlayer(_videoController!),
+                        ),
+                      )
+                    : const CircularProgressIndicator(),
           ),
 
           /// Text: “LET’S GET STARTED...!”
@@ -132,11 +144,12 @@ class _HomeScreenState extends State<HomeScreen> {
             right: 40,
             child: ElevatedButton.icon(
               onPressed: () {
-                _videoController.pause();
+                _videoController?.pause();
                 Navigator.pushNamed(context, '/login');
               },
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 backgroundColor: const Color(0xFF5A8DEE),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
