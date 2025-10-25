@@ -535,6 +535,19 @@
             color: var(--text-light);
         }
         
+        /* Loading State */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .loading::after {
+            content: "Loading...";
+            display: block;
+            text-align: center;
+            padding: 10px;
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .sidebar {
@@ -614,33 +627,32 @@
         </div>
 
         <!-- Form Container -->
-        <div class="form-container">
+        <div class="form-container" id="formContainer">
             <div class="form-header">
                 <div>
-                    <h2>John Doe</h2>
+                    <h2 id="userNameHeader">Loading...</h2>
                     <p>Update user information</p>
                 </div>
                 <div class="user-status">
-                    <span>User ID: USR001</span>
+                    <span id="userIdDisplay">User ID: Loading...</span>
                 </div>
             </div>
 
             <form id="updateUserForm">
-
                 <!-- Personal Information -->
                 <div class="form-row">
                     <div class="form-group">
                         <label for="email" class="required">Email Address</label>
                         <div class="input-with-icon">
                             <i class="fas fa-envelope"></i>
-                            <input type="email" id="email" name="email" value="" required>
+                            <input type="email" id="email" name="email" required>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="phone">Phone Number</label>
                         <div class="input-with-icon">
                             <i class="fas fa-phone"></i>
-                            <input type="tel" id="phone" name="phone" value="">
+                            <input type="tel" id="phone" name="phone">
                         </div>
                     </div>
                 </div>
@@ -668,7 +680,7 @@
                         <label for="username" class="required">Full Name</label>
                         <div class="input-with-icon">
                             <i class="fas fa-user"></i>
-                            <input type="text" id="username" name="username" value="" required>
+                            <input type="text" id="username" name="username" required>
                         </div>
                     </div>
                 </div>
@@ -693,133 +705,202 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <script>
+        // Initialize Firebase
+        console.log("Initializing Firebase...");
+        const firebaseConfig = {
+            apiKey: "AIzaSyCF-mvHTxAcQjAFwQyXs8I4nZaCBPZ2Ln4",
+            authDomain: "haelin.firebaseapp.com",
+            projectId: "haelin",
+        };
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            console.log("Firebase initialized successfully!");
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+        }
+    </script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Populate form with user data
-            document.getElementById('firstName').value = userData.firstName;
-            document.getElementById('lastName').value = userData.lastName;
-            document.getElementById('email').value = userData.email;
-            document.getElementById('phone').value = userData.phone;
-            document.getElementById('username').value = userData.username;
-            document.getElementById('status').value = userData.status;
-            document.getElementById('department').value = userData.department;
-            document.getElementById('notes').value = userData.notes;
+            const token = localStorage.getItem("authToken");
+            const userId = getUserIdFromURL();
             
-            // Set permissions
-            document.getElementById('canExport').checked = userData.permissions.canExport;
-            document.getElementById('canManageCases').checked = userData.permissions.canManageCases;
-            document.getElementById('receiveNotifications').checked = userData.permissions.receiveNotifications;
-            
-            // Set role selection
-            const roleCards = document.querySelectorAll('.role-card');
-            roleCards.forEach(card => {
-                card.classList.remove('selected');
-                if (card.getAttribute('data-role') === userData.role) {
-                    card.classList.add('selected');
-                    document.getElementById('role').value = userData.role;
-                }
-            });
+            if (!token) {
+                alert("Session expired. Please log in again.");
+                window.location.href = "index.html";
+                return;
+            }
 
-            // Avatar Upload
-            const avatarInput = document.getElementById('avatarInput');
-            const avatarPreview = document.getElementById('avatarPreview');
-            const uploadAvatarBtn = document.getElementById('uploadAvatar');
-            const removeAvatarBtn = document.getElementById('removeAvatar');
-            
-            uploadAvatarBtn.addEventListener('click', function() {
-                avatarInput.click();
-            });
-            
-            avatarInput.addEventListener('change', function() {
-                if (this.files && this.files[0]) {
-                    const reader = new FileReader();
-                    
-                    reader.onload = function(e) {
-                        avatarPreview.innerHTML = `<img src="${e.target.result}" alt="Avatar">`;
-                    }
-                    
-                    reader.readAsDataURL(this.files[0]);
-                }
-            });
-            
-            removeAvatarBtn.addEventListener('click', function() {
-                avatarPreview.innerHTML = '<i class="fas fa-user"></i>';
-                avatarInput.value = '';
-            });
-            
-            // Role Selection
-            roleCards.forEach(card => {
-                card.addEventListener('click', function() {
-                    roleCards.forEach(c => c.classList.remove('selected'));
-                    this.classList.add('selected');
-                    document.getElementById('role').value = this.getAttribute('data-role');
-                });
-            });
-            
-            // Password Toggle
-            const togglePassword = document.getElementById('togglePassword');
-            const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
-            const passwordInput = document.getElementById('password');
-            const confirmPasswordInput = document.getElementById('confirmPassword');
-            
-            togglePassword.addEventListener('click', function() {
-                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                passwordInput.setAttribute('type', type);
-                this.querySelector('i').className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
-            });
-            
-            toggleConfirmPassword.addEventListener('click', function() {
-                const type = confirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                confirmPasswordInput.setAttribute('type', type);
-                this.querySelector('i').className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
-            });
-            
-            // Form Validation and Submission
+            if (!userId) {
+                alert("No user ID specified. Redirecting to users page.");
+                window.location.href = "users.html";
+                return;
+            }
+
+            // Load user data
+            loadUserData(userId, token);
+
+            // Form submission handler
             const updateUserForm = document.getElementById('updateUserForm');
-            
             updateUserForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                
-                // Password validation (only if passwords are provided)
-                const password = passwordInput.value;
-                const confirmPassword = confirmPasswordInput.value;
-                
-                if (password && password.length < 8) {
-                    alert('Password must be at least 8 characters long!');
-                    return;
-                }
-                
-                if (password && password !== confirmPassword) {
-                    alert('Passwords do not match!');
-                    return;
-                }
-                
-                // In a real application, you would submit the form data to the server
-                alert('User updated successfully!');
-                
-                // Redirect back to users page
-                setTimeout(() => {
-                    window.location.href = 'users.html';
-                }, 1500);
+                updateUser(userId, token);
             });
-            
-            // Cancel Button
+
+            // Cancel button handler
             document.getElementById('cancelBtn').addEventListener('click', function() {
                 if (confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
                     window.location.href = 'users.html';
                 }
             });
-            
-            // Delete Button
+
+            // Delete button handler
             document.getElementById('deleteBtn').addEventListener('click', function() {
-                if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-                    if (confirm('This will permanently delete the user and all their data. Continue?')) {
-                        alert('User deleted successfully!');
-                        window.location.href = 'users.html';
-                    }
-                }
+                deleteUser(userId, token);
             });
         });
+
+        // Get user ID from URL parameters
+        function getUserIdFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+
+        // Load user data from backend
+        async function loadUserData(userId, token) {
+            try {
+                console.log("Loading user data for ID:", userId);
+                
+                const response = await fetch(`http://localhost:8080/haelin-app/user/${userId}`, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to load user: ${response.status}`);
+                }
+
+                const userData = await response.json();
+                console.log("User data loaded:", userData);
+                
+                // Populate form fields
+                populateForm(userData);
+                
+            } catch (error) {
+                console.error("Error loading user data:", error);
+                alert("Failed to load user data. Please try again.");
+                window.location.href = "users.html";
+            }
+        }
+
+        // Populate form with user data
+// Populate form with user data
+function populateForm(userData) {
+    console.log("Populating form with data:", userData);
+    
+    // Update header
+    document.getElementById('userNameHeader').textContent = userData.userName || "Unknown User";
+    document.getElementById('userIdDisplay').textContent = `User ID: ${userData.userId || "N/A"}`;
+    
+    // Populate form fields with correct field names
+    document.getElementById('email').value = userData.userEmail || "";
+    document.getElementById('phone').value = userData.userContact || "";  // Map to userContact
+    document.getElementById('nic').value = userData.userNic || "";        // Map to userNic
+    document.getElementById('address').value = userData.userAddress || ""; // Map to userAddress
+    document.getElementById('username').value = userData.userName || "";
+    
+    console.log("Form populated successfully");
+}
+
+// Update user data
+async function updateUser(userId, token) {
+    try {
+        // Get form data and map to correct field names
+        const formData = {
+            userEmail: document.getElementById('email').value,
+            userContact: document.getElementById('phone').value,  // Map to userContact
+            userNic: document.getElementById('nic').value,        // Map to userNic
+            userAddress: document.getElementById('address').value, // Map to userAddress
+            userName: document.getElementById('username').value
+        };
+
+        console.log("Updating user with data:", formData);
+
+        const response = await fetch(`http://localhost:8080/haelin-app/user/update/${userId}`, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(formData)
+        });
+
+        console.log("Update response status:", response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Update error response:", errorText);
+            throw new Error(errorText || `Server returned ${response.status}`);
+        }
+
+        const result = await response.text();
+        console.log("Update successful:", result);
+        alert(result || "User updated successfully!");
+        
+        // Redirect back to users page
+        setTimeout(() => {
+            window.location.href = 'users.html';
+        }, 1500);
+        
+    } catch (error) {
+        console.error("Error updating user:", error);
+        alert("Failed to update user: " + error.message);
+    }
+}
+
+        // Delete user
+        async function deleteUser(userId, token) {
+            if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+                return;
+            }
+
+            if (!confirm("This will permanently delete the user and all their data. Continue?")) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:8080/haelin-app/user/delete/${userId}`, {
+                    method: "DELETE",
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+
+                const result = await response.text();
+                alert(result || "User deleted successfully!");
+                
+                // Redirect back to users page
+                setTimeout(() => {
+                    window.location.href = 'users.html';
+                }, 1500);
+                
+            } catch (error) {
+                console.error("Error deleting user:", error);
+                alert("Failed to delete user: " + error.message);
+            }
+        }
     </script>
 </body>
 </html>

@@ -102,6 +102,31 @@ public class UserController {
         return userList;
     }
 
+    @GetMapping("/{userId}")
+    public ResponseEntity<?> getUserById(@PathVariable String userId) {
+        try {
+            System.out.println("Fetching user with ID: " + userId);
+
+            User user = userService.getUser(userId);
+
+            if (user != null) {
+                System.out.println("User found: " + user.getUserName());
+                return ResponseEntity.ok(user);
+            } else {
+                System.out.println("User not found with ID: " + userId);
+                return ResponseEntity.status(404).body("User not found with ID: " + userId);
+            }
+        } catch (ExecutionException | InterruptedException e) {
+            System.out.println("Error fetching user: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error fetching user: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Unexpected error: " + e.getMessage());
+        }
+    }
+
     // =================== UPDATE USER ===================
     @PutMapping("/update/{uid}")
     public ResponseEntity<?> updateUser(@PathVariable String uid, @RequestBody User user,
