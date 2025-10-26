@@ -20,7 +20,7 @@ public class NotifiService {
         Firestore db = FirestoreClient.getFirestore();
 
         ApiFuture<WriteResult> writeResult = db.collection(COLLECTION_NAME)
-                .document() // Firestore auto-generates the document ID
+                .document()
                 .set(notification);
 
         return "Notification added at: " + writeResult.get().getUpdateTime();
@@ -32,6 +32,21 @@ public class NotifiService {
         ApiFuture<QuerySnapshot> query = db.collection(COLLECTION_NAME).get();
         List<QueryDocumentSnapshot> documents = query.get().getDocuments();
 
+        List<Notification> notifications = new ArrayList<>();
+        for (QueryDocumentSnapshot document : documents) {
+            notifications.add(document.toObject(Notification.class));
+        }
+        return notifications;
+    }
+
+    // Get notifications for a specific userId
+    public List<Notification> getNotificationsByUser(String userId) throws ExecutionException, InterruptedException {
+        Firestore db = FirestoreClient.getFirestore();
+        ApiFuture<QuerySnapshot> query = db.collection(COLLECTION_NAME)
+                .whereEqualTo("userId", userId)
+                .get();
+
+        List<QueryDocumentSnapshot> documents = query.get().getDocuments();
         List<Notification> notifications = new ArrayList<>();
         for (QueryDocumentSnapshot document : documents) {
             notifications.add(document.toObject(Notification.class));

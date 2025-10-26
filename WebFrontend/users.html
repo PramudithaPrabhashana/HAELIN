@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HAELIN - Users Management</title>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -386,7 +387,6 @@
             <ul>
                 <li><a href="dashboard.html"><i class="fas fa-tachometer-alt"></i> <span>Dashboard</span></a></li>
                 <li><a href="#" class="active"><i class="fas fa-users"></i> <span>Users</span></a></li>
-                <li><a href="reports.html"><i class="fas fa-file-medical"></i> <span>Reports</span></a></li>
                 <li><a href="index.html"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></li>
             </ul>
         </div>
@@ -406,14 +406,6 @@
         <!-- Page Header -->
         <div class="page-header">
             <div class="page-title">All Users</div>
-            <div class="page-actions">
-                <button class="btn btn-outline">
-                    <i class="fas fa-download"></i> Export
-                </button>
-                <button class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Add User
-                </button>
-            </div>
         </div>
 
         <!-- Search and Filter -->
@@ -427,7 +419,7 @@
                 <select>
                     <option>All Roles</option>
                     <option>Admin</option>
-                    <option>User</option>
+                    <option>Patient</option>
                 </select>
             </div>
         </div>
@@ -451,57 +443,161 @@
             </div>
         </div>
     </div>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
-    <script>
-        // Search functionality
-        document.querySelector('.search-box input').addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            const rows = document.querySelectorAll('.users-table tbody tr');
-            
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
-            });
-        });
-        
-        // Filter functionality
-        document.querySelectorAll('.filter-options select').forEach(select => {
-            select.addEventListener('change', function() {
-                // In a real application, this would filter the table data
-                alert('Filter applied: ' + this.value);
-            });
-        });
-        
-        // Action buttons functionality
-        document.querySelectorAll('.action-btn.view').forEach(btn => {
-            btn.addEventListener('click', function() {
-                alert('View user details');
-            });
-        });
-        
-        document.querySelectorAll('.action-btn.edit').forEach(btn => {
-            btn.addEventListener('click', function() {
-                alert('Edit user');
-            });
-        });
-        
-        document.querySelectorAll('.action-btn.delete').forEach(btn => {
-            btn.addEventListener('click', function() {
-                if (confirm('Are you sure you want to delete this user?')) {
-                    alert('User deleted');
+<script>
+    // Initialize Firebase
+    console.log("Initializing Firebase...");
+    const firebaseConfig = {
+        apiKey: "AIzaSyCF-mvHTxAcQjAFwQyXs8I4nZaCBPZ2Ln4",
+        authDomain: "haelin.firebaseapp.com",
+        projectId: "haelin",
+    };
+
+    try {
+        firebase.initializeApp(firebaseConfig);
+        console.log("Firebase initialized successfully!");
+    } catch (error) {
+        console.error("Firebase initialization error:", error);
+    }
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("User management page loaded");
+
+    // Get Firebase token saved after login
+    const token = localStorage.getItem("authToken");
+    const tableBody = document.querySelector(".users-table tbody");
+
+    if (!token) {
+        alert("Session expired. Please log in again.");
+        window.location.href = "index.html";
+        return;
+    }
+
+    // Load all users
+    async function loadUsers() {
+        console.log("Loading users...");
+        tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Loading...</td></tr>`;
+
+        try {
+            const response = await fetch("http://localhost:8080/haelin-app/user/all", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`
                 }
             });
+
+            if (!response.ok) throw new Error(await response.text());
+            const users = await response.json();
+
+            tableBody.innerHTML = "";
+
+            if (users.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No users found.</td></tr>`;
+                return;
+            }
+
+            users.forEach(u => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td class="user-info-cell">
+                        <div class="user-avatar">${(u.userName || "?")[0].toUpperCase()}</div>
+                        <div class="user-details">
+                            <h4>${u.userName || "Unknown"}</h4>
+                            <p>${u.userId || "-"}</p>
+                        </div>
+                    </td>
+                    <td>${u.userEmail || "-"}</td>
+                    <td>${u.userRole || "-"}</td>
+                    <td>${u.registrationDate || "—"}</td>
+                    <td class="action-buttons">
+                        <button class="action-btn edit" data-id="${u.userId}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn delete" data-id="${u.userId}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            attachActionHandlers();
+        } catch (err) {
+            console.error("Error loading users:", err);
+            tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:red;">Failed to load users</td></tr>`;
+        }
+    }
+
+    // Edit user handler - REDIRECT TO UPDATE PAGE
+    function editUser(uid) {
+        // Redirect to updateUser.html with user ID as parameter
+        window.location.href = `updateUser.html?id=${uid}`;
+    }
+
+    // Delete user handler
+    async function deleteUser(uid) {
+        if (!confirm("Are you sure you want to delete this user?")) return;
+
+        try {
+            const res = await fetch(`http://localhost:8080/haelin-app/user/delete/${uid}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            alert(await res.text());
+            loadUsers();
+        } catch (err) {
+            console.error("Error deleting user:", err);
+            alert("Failed to delete user");
+        }
+    }
+
+    // Attach click handlers dynamically
+    function attachActionHandlers() {
+        document.querySelectorAll(".action-btn.edit").forEach(btn => {
+            btn.addEventListener("click", () => editUser(btn.dataset.id));
         });
-        
-        // Add User button
-        document.querySelector('.btn-primary').addEventListener('click', function() {
-            alert('Add new user form would open here');
+
+        document.querySelectorAll(".action-btn.delete").forEach(btn => {
+            btn.addEventListener("click", () => deleteUser(btn.dataset.id));
         });
-        
-        // Export button
-        document.querySelector('.btn-outline').addEventListener('click', function() {
-            alert('Exporting user data...');
+    }
+
+    // Search functionality
+    const searchBox = document.querySelector(".search-box input");
+    if (searchBox) {
+        searchBox.addEventListener("input", function() {
+            const searchTerm = this.value.toLowerCase();
+            document.querySelectorAll(".users-table tbody tr").forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? "" : "none";
+            });
         });
-    </script>
+    }
+
+    // Filter functionality
+    const filterSelect = document.querySelector(".filter-options select");
+    if (filterSelect) {
+        filterSelect.addEventListener("change", function() {
+            const selected = this.value.toLowerCase();
+            document.querySelectorAll(".users-table tbody tr").forEach(row => {
+                const role = row.children[2].textContent.toLowerCase();
+                row.style.display = selected === "all roles" || role === selected ? "" : "none";
+            });
+        });
+    }
+
+    // Run loader
+    loadUsers();
+});
+</script>
+
 </body>
 </html>

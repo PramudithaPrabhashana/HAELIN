@@ -28,9 +28,17 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    // =================== SIGNUP ===================
-    @PostMapping("/signup")
-    public String signup(@RequestBody User user) throws Exception {
+    // =================== MOBILE SIGNUP (Patient) ===================
+    @PostMapping("/signup/mobile")
+    public String signupMobile(@RequestBody User user) throws Exception {
+        user.setUserRole("PATIENT");
+        return userService.signup(user);
+    }
+
+    // =================== WEB SIGNUP (Admin) ===================
+    @PostMapping("/signup/web")
+    public String signupWeb(@RequestBody User user) throws Exception {
+        user.setUserRole("ADMIN");
         return userService.signup(user);
     }
 
@@ -48,7 +56,7 @@ public class UserController {
     }
 
     // =================== LOGIN - Verify Firebase Token ===================
-    @PostMapping("/login")
+    @PostMapping("/login/admin")
     public ResponseEntity<?> login(@RequestBody UserLoginRequest request) {
         try {
             String idToken = request.getIdToken();
@@ -78,6 +86,37 @@ public class UserController {
         }
     }
 
+    // =================== LOGIN - Verify Firebase Token (Patient) ===================
+    @PostMapping("/login/patient")
+    public ResponseEntity<?> loginPatient(@RequestBody UserLoginRequest request) {
+        try {
+            String idToken = request.getIdToken();
+
+            if (idToken == null || idToken.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("ID token is required");
+            }
+
+            User user = userService.verifyToken(idToken);
+
+            // Check if user is patient
+            if ("PATIENT".equalsIgnoreCase(user.getUserRole())) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "Login successful");
+                response.put("user", user);
+                response.put("isPatient", true);
+
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("Access denied: Patient privileges required");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Login failed: " + e.getMessage());
+        }
+    }
+
     // =================== GET ALL USERS (ADMIN ONLY) ===================
     @GetMapping("/all")
     public List<User> getAllUsers(@RequestHeader("Authorization") String authHeader) throws Exception {
@@ -92,6 +131,31 @@ public class UserController {
             userList.add(doc.toObject(User.class));
         }
         return userList;
+    }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<?> getUserById(@PathVariable String userId) {
+        try {
+            System.out.println("Fetching user with ID: " + userId);
+
+            User user = userService.getUser(userId);
+
+            if (user != null) {
+                System.out.println("User found: " + user.getUserName());
+                return ResponseEntity.ok(user);
+            } else {
+                System.out.println("User not found with ID: " + userId);
+                return ResponseEntity.status(404).body("User not found with ID: " + userId);
+            }
+        } catch (ExecutionException | InterruptedException e) {
+            System.out.println("Error fetching user: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error fetching user: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Unexpected error: " + e.getMessage());
+        }
     }
 
     // =================== UPDATE USER ===================
