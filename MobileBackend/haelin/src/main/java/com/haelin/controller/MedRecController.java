@@ -1,6 +1,9 @@
 package com.haelin.controller;
 
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
 import com.haelin.model.MedRec;
 import com.haelin.service.MedRecService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +20,23 @@ public class MedRecController {
     private MedRecService medRecService;
 
     @PostMapping("/add")
-    public String createRecord(@RequestBody MedRec medRec) throws ExecutionException, InterruptedException {
-        return medRecService.createRecord(medRec);
+    public String createRecord(@RequestHeader("Authorization") String authHeader,
+                               @RequestBody MedRec medRec)
+            throws ExecutionException, InterruptedException {
+
+        // Extract and verify Firebase ID token
+        String idToken = authHeader.replace("Bearer ", "");
+
+        try {
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            String uid = decodedToken.getUid();      // Extract UID
+            medRec.setUserId(uid);                   // Assign UID as userId
+
+            return medRecService.createRecord(medRec);
+
+        } catch (Exception e) {
+            return "Invalid or expired Firebase token: " + e.getMessage();
+        }
     }
 
     @PutMapping("/update/{id}")
@@ -29,6 +47,17 @@ public class MedRecController {
     @GetMapping("/all")
     public List<MedRec> getAllRecords() throws ExecutionException, InterruptedException {
         return medRecService.getAllRecords();
+    }
+
+    //Get only records belonging to the logged-in user
+    @GetMapping("/user")
+    public List<MedRec> getRecordsByUser(@RequestHeader("Authorization") String authHeader)
+            throws ExecutionException, InterruptedException, FirebaseAuthException {
+        String idToken = authHeader.replace("Bearer ", "");
+        FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+        String uid = decodedToken.getUid();
+
+        return medRecService.getRecordsByUserId(uid);
     }
 
     @GetMapping("{id}")
