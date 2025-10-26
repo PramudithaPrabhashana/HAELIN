@@ -3,6 +3,7 @@ package com.haelin.model;
 public class MedRec {
 
     private String medID;
+    private String userId;
     private String diagnosis;
     private String riskStatus;
     private String date;
@@ -11,8 +12,9 @@ public class MedRec {
 
     public MedRec() {}
 
-    public MedRec(String medID, String diagnosis, String riskStatus, String date, String symptoms, double predScore) {
+    public MedRec(String medID, String userId, String diagnosis, String riskStatus, String date, String symptoms, double predScore) {
         this.medID = medID;
+        this.userId = userId;
         this.diagnosis = diagnosis;
         this.riskStatus = riskStatus;
         this.date = date;
@@ -23,6 +25,9 @@ public class MedRec {
     // Getters and setters
     public String getMedID() { return medID; }
     public void setMedID(String medID) { this.medID = medID; }
+
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
     public String getDiagnosis() { return diagnosis; }
     public void setDiagnosis(String diagnosis) { this.diagnosis = diagnosis; }

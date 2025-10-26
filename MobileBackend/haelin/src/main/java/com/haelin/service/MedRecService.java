@@ -14,19 +14,39 @@ public class MedRecService {
 
     private static final String COLLECTION_NAME = "medical_records";
 
+    // Auto-generate IDs like MR001, MR002...
+    private String generateNewMedID(Firestore db) throws ExecutionException, InterruptedException {
+        CollectionReference collection = db.collection(COLLECTION_NAME);
+        ApiFuture<QuerySnapshot> query = collection.get();
+        List<QueryDocumentSnapshot> docs = query.get().getDocuments();
+
+        int maxNumber = 0;
+        for (QueryDocumentSnapshot doc : docs) {
+            String medID = doc.getString("medID");
+            if (medID != null && medID.startsWith("MR")) {
+                try {
+                    int num = Integer.parseInt(medID.substring(2));
+                    if (num > maxNumber) maxNumber = num;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        int nextNumber = maxNumber + 1;
+        return String.format("MR%03d", nextNumber);
+    }
+
     // Create record
     public String createRecord(MedRec medRec) throws ExecutionException, InterruptedException {
         Firestore db = FirestoreClient.getFirestore();
 
-        // Generate new ID for each new record
-        String newId = UUID.randomUUID().toString();
+        String newId = generateNewMedID(db);
         medRec.setMedID(newId);
 
         ApiFuture<WriteResult> writeResult = db.collection(COLLECTION_NAME)
                 .document(newId)
                 .set(medRec);
 
-        return "New record created at: " + writeResult.get().getUpdateTime();
+        return "New record created with ID " + newId + " at: " + writeResult.get().getUpdateTime();
     }
 
     //Update
@@ -43,6 +63,7 @@ public class MedRecService {
 
         Map<String, Object> updates = new HashMap<>();
 
+        if (medRec.getUserId() != null) updates.put("userId", medRec.getUserId());
         if (medRec.getDiagnosis() != null) updates.put("diagnosis", medRec.getDiagnosis());
         if (medRec.getRiskStatus() != null) updates.put("riskStatus", medRec.getRiskStatus());
         if (medRec.getDate() != null) updates.put("date", medRec.getDate());
@@ -63,6 +84,21 @@ public class MedRecService {
         ApiFuture<QuerySnapshot> query = db.collection(COLLECTION_NAME).get();
         List<QueryDocumentSnapshot> docs = query.get().getDocuments();
 
+        List<MedRec> records = new ArrayList<>();
+        for (QueryDocumentSnapshot doc : docs) {
+            records.add(doc.toObject(MedRec.class));
+        }
+        return records;
+    }
+
+    // Get records by userId
+    public List<MedRec> getRecordsByUserId(String userId) throws ExecutionException, InterruptedException {
+        Firestore db = FirestoreClient.getFirestore();
+        ApiFuture<QuerySnapshot> query = db.collection(COLLECTION_NAME)
+                .whereEqualTo("userId", userId)
+                .get();
+
+        List<QueryDocumentSnapshot> docs = query.get().getDocuments();
         List<MedRec> records = new ArrayList<>();
         for (QueryDocumentSnapshot doc : docs) {
             records.add(doc.toObject(MedRec.class));
