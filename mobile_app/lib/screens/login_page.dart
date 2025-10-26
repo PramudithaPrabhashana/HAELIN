@@ -1,14 +1,10 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-
-import 'home_dashboard.dart'; // 👈 import the dashboard
+import 'home_dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -28,11 +24,10 @@ class _LoginPageState extends State<LoginPage> {
   // Helper method to get the correct base URL based on platform
   String getBaseUrl() {
     if (kIsWeb) {
-      return 'http://localhost:8080/haelin-app'; // Web - needs CORS configuration
+      return 'http://localhost:8080/haelin-app';
     } else {
-      // For physical device - replace with your computer's actual IP
-      return 'http://192.168.1.100:8080'; // ← CHANGE TO YOUR COMPUTER'S IP
-    } 
+      return 'http://192.168.1.100:8080/haelin-app'; // Make sure to add /haelin-app here too
+    }
   }
 
  Future<void> _loginUser() async {
@@ -64,13 +59,13 @@ class _LoginPageState extends State<LoginPage> {
 
     // 3️⃣ Send token to backend for verification
     final String baseUrl = getBaseUrl();
-    final String loginUrl = '$baseUrl/user/login';
+    final String loginUrl = '$baseUrl/user/login/patient';
     
     print('🟡 Step 3: Preparing backend request...');
     print('🌐 URL: $loginUrl');
     print('📧 User Email: ${userCredential.user?.email}');
 
-    // 4️⃣ Send request to /user/login endpoint
+    // 4️⃣ Send request to backend
     print('🟡 Step 4: Sending request to backend...');
     var response = await http.post(
       Uri.parse(loginUrl),
@@ -80,7 +75,7 @@ class _LoginPageState extends State<LoginPage> {
       body: jsonEncode({
         "idToken": idToken
       }),
-    ).timeout(const Duration(seconds: 10));
+    );
 
     print('✅ Step 4: Backend responded with status: ${response.statusCode}');
     print('📄 Response body: ${response.body}');
@@ -88,39 +83,47 @@ class _LoginPageState extends State<LoginPage> {
     // 5️⃣ Handle response
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
-      print('✅ Login successful, isAdmin: ${data["isAdmin"]}');
-
-      if (data["isAdmin"] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Admin Login Successful")),
-        );
-
-        // ✅ Navigate to HomeDashboard and show username/email
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => HomeDashboard(
-              username: userCredential.user?.displayName ??
-                  userCredential.user?.email ??
-                  "User",
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Access Denied: Not an Admin")),
-        );
+      print('✅ Login successful');
+      print('👤 User data: ${data["user"]}');
+      
+      // Extract username from response
+      String username = "User";
+      if (data["user"] != null && data["user"]["userName"] != null) {
+        username = data["user"]["userName"];
+      } else if (userCredential.user?.displayName != null) {
+        username = userCredential.user!.displayName!;
+      } else if (userCredential.user?.email != null) {
+        username = userCredential.user!.email!;
       }
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login Successful")),
+      );
+
+      // ✅ Navigate to HomeDashboard
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomeDashboard(
+            username: username,
+          ),
+        ),
+      );
     } else {
       print('❌ Backend error: ${response.statusCode}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login failed: ${response.statusCode} - ${response.body}")),
-      );
+      // Don't show "Access Denied" message for non-admin users
+      if (response.statusCode != 403) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Login failed: ${response.body}")),
+        );
+      }
     }
   } catch (e) {
     print('❌ Exception: $e');
+    print('❌ Exception type: ${e.runtimeType}');
     
-    // Handle specific errors
+    // Handle specific errors using if-else instead of multiple catch blocks
     if (e is FirebaseAuthException) {
       String errorMessage = "Login failed";
       if (e.code == 'user-not-found') {
@@ -129,19 +132,26 @@ class _LoginPageState extends State<LoginPage> {
         errorMessage = "Incorrect password";
       } else if (e.code == 'invalid-email') {
         errorMessage = "Invalid email address";
+      } else if (e.code == 'user-disabled') {
+        errorMessage = "This account has been disabled";
+      } else if (e.code == 'too-many-requests') {
+        errorMessage = "Too many attempts. Try again later";
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
-    } else if (e is SocketException) {
+    } else if (e is http.ClientException) {
+      // Handle HTTP client errors (network issues, etc.)
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Network error: Cannot reach the server. Check if backend is running.")),
+        SnackBar(content: Text("Network error: Cannot connect to server")),
       );
-    } else if (e is TimeoutException) {
+    } else if (e is FormatException) {
+      // Handle JSON parsing errors
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Request timeout: Server is not responding")),
+        SnackBar(content: Text("Data format error")),
       );
     } else {
+      // Handle all other errors
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );

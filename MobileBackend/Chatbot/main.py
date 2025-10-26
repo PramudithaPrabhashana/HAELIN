@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware import Middleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import requests
@@ -13,7 +15,21 @@ API_KEY = os.getenv("DEEPSEEK_API_KEY")
 if not API_KEY:
     raise ValueError("❌ API key not found. Please set DEEPSEEK_API_KEY in .env file.")
 
-app = FastAPI(title="Medical Chatbot API (No RAG)")
+# 🎯 FIXED CORS CONFIGURATION
+middleware = [
+    Middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Allow all origins for development
+        allow_credentials=True,
+        allow_methods=["*"],  # Allow all methods including OPTIONS
+        allow_headers=["*"],  # Allow all headers
+    )
+]
+
+app = FastAPI(
+    title="Medical Chatbot API (No RAG)",
+    middleware=middleware  # Add middleware here
+)
 
 # Request body model
 class UserMessage(BaseModel):
@@ -28,7 +44,6 @@ def chat(user_message: UserMessage):
     """Simple chatbot endpoint without RAG"""
     payload = {
         "model": "mistralai/mistral-7b-instruct:free",
-
         "messages": [
             {"role": "system", "content": "You are a helpful medical assistant. Give general health guidance, but remind users to consult a doctor for serious issues."},
             {"role": "user", "content": user_message.message}
@@ -52,3 +67,8 @@ def chat(user_message: UserMessage):
 
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# 🎯 ADD EXPLICIT OPTIONS HANDLER FOR /chat
+@app.options("/chat")
+async def options_chat():
+    return {"message": "OK"}
