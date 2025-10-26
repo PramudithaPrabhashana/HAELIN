@@ -1,17 +1,27 @@
-# main.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import joblib
 import numpy as np
 import traceback
+from datetime import datetime
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Chikungunya/Chikungunya Prediction API")
+app = FastAPI(title="Chikungunya Prediction API")
 
-# Load model and scaler (make sure these files exist in same folder)
+# Enable CORS for Spring Boot
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or restrict to your frontend/backend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Load model and scaler
 model = joblib.load("chik_model.pkl")
 scaler = joblib.load("scaler.pkl")
 
-# Input model - field names match your CSV columns (snake-case okay)
+# Input model - field names match your training CSV columns
 class Symptoms(BaseModel):
     sex: int
     fever: int
@@ -36,7 +46,7 @@ def health():
 @app.post("/predict_chikun")
 def predict_chikun(data: Symptoms):
     try:
-        # Create array in same feature order you trained with
+        # Convert to array (must match training order)
         features = np.array([[
             data.sex, data.fever, data.cold, data.joint_pains, data.myalgia,
             data.headache, data.fatigue, data.vomitting, data.arthritis,
@@ -44,10 +54,27 @@ def predict_chikun(data: Symptoms):
             data.Eye_Pain, data.Chills, data.Swelling
         ]], dtype=float)
 
-        # Scale then predict
+        # Scale features
         features_scaled = scaler.transform(features)
-        prediction = model.predict(features_scaled)
-        return {"prediction": int(prediction[0])}
+
+        # Predict class (0 or 1)
+        prediction = int(model.predict(features_scaled)[0])
+
+        # Predict probability (confidence)
+        if hasattr(model, "predict_proba"):
+            pred_score = float(model.predict_proba(features_scaled)[0][prediction])
+        else:
+            pred_score = None
+
+        # Prediction timestamp
+        pred_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        return {
+            "prediction": prediction,      # 0 = no chikungunya, 1 = chikungunya
+            "pred_score": pred_score,      # confidence score
+            "pred_date": pred_date         # prediction time
+        }
+
     except Exception as e:
         traceback_str = traceback.format_exc()
         raise HTTPException(status_code=500, detail=f"{str(e)}\n{traceback_str}")
