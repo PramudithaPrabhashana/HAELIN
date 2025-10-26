@@ -6,7 +6,7 @@ import traceback
 from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Chikungunya Prediction API")
+app = FastAPI(title="Chikungunya Predictions API")
 
 # Enable CORS for Spring Boot
 app.add_middleware(
