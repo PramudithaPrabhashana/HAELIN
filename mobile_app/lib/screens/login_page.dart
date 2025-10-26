@@ -1,9 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
+
 
 import 'home_dashboard.dart'; // 👈 import the dashboard
 
@@ -26,83 +29,99 @@ class _LoginPageState extends State<LoginPage> {
   String getBaseUrl() {
     if (kIsWeb) {
       return 'http://localhost:8080/haelin-app'; // Web - needs CORS configuration
-    } else if (Platform.isAndroid) {
-      // For physical device - replace with your computer's actual IP
-      return 'http:///haelin-app'; // ← CHANGE TO YOUR COMPUTER'S IP
     } else {
-      return 'http://localhost:8080/haelin-app'; // iOS simulator/desktop
-    }
+      // For physical device - replace with your computer's actual IP
+      return 'http://192.168.1.100:8080'; // ← CHANGE TO YOUR COMPUTER'S IP
+    } 
   }
 
-  Future<void> _loginUser() async {
-    // Validate email and password
-    if (_emailController.text.trim().isEmpty ||
-        _passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter both email and password")),
-      );
-      return;
-    }
+ Future<void> _loginUser() async {
+  // Validate email and password
+  if (_emailController.text.trim().isEmpty ||
+      _passwordController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please enter both email and password")),
+    );
+    return;
+  }
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      // 1️⃣ Login with Firebase Authentication
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+  try {
+    // 1️⃣ Login with Firebase Authentication
+    print('🟡 Step 1: Starting Firebase authentication...');
+    UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
+    print('✅ Step 1: Firebase authentication successful');
 
-      // 2️⃣ Get the ID token from Firebase
-      String? idToken = await userCredential.user?.getIdToken();
-      if (idToken == null) throw Exception("Failed to get Firebase ID token");
+    // 2️⃣ Get the ID token from Firebase
+    print('🟡 Step 2: Getting Firebase ID token...');
+    String? idToken = await userCredential.user?.getIdToken();
+    if (idToken == null) throw Exception("Failed to get Firebase ID token");
+    print('✅ Step 2: Got Firebase ID token');
 
-      // 3️⃣ Send token to backend for verification - FIXED URL & HEADERS
-      final String baseUrl = getBaseUrl();
-      final String loginUrl = '$baseUrl/user/verify';
-      
-      print('Sending request to: $loginUrl'); // Debug print
+    // 3️⃣ Send token to backend for verification
+    final String baseUrl = getBaseUrl();
+    final String loginUrl = '$baseUrl/user/login';
+    
+    print('🟡 Step 3: Preparing backend request...');
+    print('🌐 URL: $loginUrl');
+    print('📧 User Email: ${userCredential.user?.email}');
 
-      var response = await http.post(
-        Uri.parse(loginUrl),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $idToken", // 👈 ADDED Authorization header
-        },
-        body: jsonEncode({"idToken": idToken}),
-      );
+    // 4️⃣ Send request to /user/login endpoint
+    print('🟡 Step 4: Sending request to backend...');
+    var response = await http.post(
+      Uri.parse(loginUrl),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "idToken": idToken
+      }),
+    ).timeout(const Duration(seconds: 10));
 
-      // 4️⃣ Handle response
-      if (response.statusCode == 200) {
-        var data = jsonDecode(response.body);
+    print('✅ Step 4: Backend responded with status: ${response.statusCode}');
+    print('📄 Response body: ${response.body}');
 
-        if (data["isAdmin"] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Admin Login Successful")),
-          );
+    // 5️⃣ Handle response
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+      print('✅ Login successful, isAdmin: ${data["isAdmin"]}');
 
-          // ✅ Navigate to HomeDashboard and show username/email
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => HomeDashboard(
-                username: userCredential.user?.displayName ??
-                    userCredential.user?.email ??
-                    "User",
-              ),
+      if (data["isAdmin"] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Admin Login Successful")),
+        );
+
+        // ✅ Navigate to HomeDashboard and show username/email
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HomeDashboard(
+              username: userCredential.user?.displayName ??
+                  userCredential.user?.email ??
+                  "User",
             ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Access Denied: Not an Admin")),
-          );
-        }
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Login failed: ${response.statusCode} - ${response.body}")),
+          const SnackBar(content: Text("Access Denied: Not an Admin")),
         );
       }
-    } on FirebaseAuthException catch (e) {
+    } else {
+      print('❌ Backend error: ${response.statusCode}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login failed: ${response.statusCode} - ${response.body}")),
+      );
+    }
+  } catch (e) {
+    print('❌ Exception: $e');
+    
+    // Handle specific errors
+    if (e is FirebaseAuthException) {
       String errorMessage = "Login failed";
       if (e.code == 'user-not-found') {
         errorMessage = "No user found with this email";
@@ -114,14 +133,23 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
-    } catch (e) {
+    } else if (e is SocketException) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Network error: Cannot reach the server. Check if backend is running.")),
+      );
+    } else if (e is TimeoutException) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Request timeout: Server is not responding")),
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
-    } finally {
-      setState(() => _isLoading = false);
     }
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
