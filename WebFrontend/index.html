@@ -359,7 +359,7 @@
                             console.log("Firebase login successful, sending token to backend...");
 
                             // Send the token to your Spring Boot backend
-                            const response = await fetch("http://localhost:8080/haelin-app/user/login", {
+                            const response = await fetch("http://localhost:8080/haelin-app/user/login/admin", {
                                 method: "POST",
                                 headers: { 
                                     "Content-Type": "application/json" 
