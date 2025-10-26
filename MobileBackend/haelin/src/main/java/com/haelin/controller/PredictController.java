@@ -17,7 +17,7 @@ public class PredictController {
     @PostMapping("/dengue")
     public ResponseEntity<String> predictDengue(@RequestBody Map<String, Object> payload) {
         try {
-            String fastApiUrl = "http://127.0.0.1:8000/predict_dengue";
+            String fastApiUrl = "http://127.0.0.1:8001/predict_dengue";
             RestTemplate restTemplate = new RestTemplate();
 
             ResponseEntity<String> response = restTemplate.postForEntity(fastApiUrl, payload, String.class);
