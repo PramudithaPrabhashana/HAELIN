@@ -4,8 +4,14 @@ import 'screens/home_screen.dart';
 import 'screens/login_page.dart';
 import 'screens/home_dashboard.dart';
 import 'screens/signup_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const HaelinApp());
 }
 
@@ -24,7 +30,7 @@ class HaelinApp extends StatelessWidget {
       routes: {
         '/home': (context) => const HomeScreen(),
         '/login': (context) => const LoginPage(),
-        '/dashboard': (context) => const HomeDashboard(),
+        '/dashboard':(context) => const HomeDashboard(username: 'username'),
         '/signup': (context) => const SignupScreen()
       },
     );

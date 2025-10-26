@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
+
+import 'home_dashboard.dart'; // 👈 import the dashboard
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,82 +15,112 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _usernameController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _rememberMe = false;
-  bool _isLoading = false;
 
-  // 👁️ Added variable for password visibility
+  bool _isLoading = false;
   bool _obscurePassword = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadRememberedUser();
-  }
-
-  Future<void> _loadRememberedUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedUsername = prefs.getString('username');
-    final savedPassword = prefs.getString('password');
-
-    if (savedUsername != null && savedPassword != null) {
-      setState(() {
-        _usernameController.text = savedUsername;
-        _passwordController.text = savedPassword;
-        _rememberMe = true;
-      });
+  // Helper method to get the correct base URL based on platform
+  String getBaseUrl() {
+    if (kIsWeb) {
+      return 'http://localhost:8080/haelin-app'; // Web - needs CORS configuration
+    } else if (Platform.isAndroid) {
+      // For physical device - replace with your computer's actual IP
+      return 'http:///haelin-app'; // ← CHANGE TO YOUR COMPUTER'S IP
+    } else {
+      return 'http://localhost:8080/haelin-app'; // iOS simulator/desktop
     }
   }
 
   Future<void> _loginUser() async {
-    setState(() => _isLoading = true);
-
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (username.isEmpty || password.isEmpty) {
-      _showMessage('Please enter both username and password.');
-      setState(() => _isLoading = false);
+    // Validate email and password
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter both email and password")),
+      );
       return;
     }
 
+    setState(() => _isLoading = true);
+
     try {
-      final response = await http.post(
-        Uri.parse('-------'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': username, 'password': password}),
+      // 1️⃣ Login with Firebase Authentication
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
 
-      final result = jsonDecode(response.body);
+      // 2️⃣ Get the ID token from Firebase
+      String? idToken = await userCredential.user?.getIdToken();
+      if (idToken == null) throw Exception("Failed to get Firebase ID token");
 
-      if (result['success'] == true) {
-        final prefs = await SharedPreferences.getInstance();
-        if (_rememberMe) {
-          await prefs.setString('username', username);
-          await prefs.setString('password', password);
+      // 3️⃣ Send token to backend for verification - FIXED URL & HEADERS
+      final String baseUrl = getBaseUrl();
+      final String loginUrl = '$baseUrl/user/verify';
+      
+      print('Sending request to: $loginUrl'); // Debug print
+
+      var response = await http.post(
+        Uri.parse(loginUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $idToken", // 👈 ADDED Authorization header
+        },
+        body: jsonEncode({"idToken": idToken}),
+      );
+
+      // 4️⃣ Handle response
+      if (response.statusCode == 200) {
+        var data = jsonDecode(response.body);
+
+        if (data["isAdmin"] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Admin Login Successful")),
+          );
+
+          // ✅ Navigate to HomeDashboard and show username/email
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HomeDashboard(
+                username: userCredential.user?.displayName ??
+                    userCredential.user?.email ??
+                    "User",
+              ),
+            ),
+          );
         } else {
-          await prefs.remove('username');
-          await prefs.remove('password');
-        }
-
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/dashboard');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Access Denied: Not an Admin")),
+          );
         }
       } else {
-        _showMessage('Username or password is incorrect.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Login failed: ${response.statusCode} - ${response.body}")),
+        );
       }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = "Login failed";
+      if (e.code == 'user-not-found') {
+        errorMessage = "No user found with this email";
+      } else if (e.code == 'wrong-password') {
+        errorMessage = "Incorrect password";
+      } else if (e.code == 'invalid-email') {
+        errorMessage = "Invalid email address";
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
     } catch (e) {
-      _showMessage('Login failed. Check your network or server.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
-
-    setState(() => _isLoading = false);
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
-    );
   }
 
   @override
@@ -99,11 +133,12 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App logo
+              // 🔹 App Logo
               Image.asset('assets/app_logo.png', width: 100, height: 100),
               const SizedBox(height: 20),
+
               const Text(
-                'Welcome Back..!',
+                'Welcome Back!',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w500,
@@ -112,69 +147,54 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 40),
 
-              // Username field
+              // 🔹 Email Field
               TextField(
-                controller: _usernameController,
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: 'Username',
+                  labelText: 'Email',
+                  prefixIcon: const Icon(Icons.email),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 20,
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Password field with toggle 👁️
+              // 🔹 Password Field
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   labelText: 'Password',
+                  prefixIcon: const Icon(Icons.lock),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  // 👇 Added eye icon button
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 20,
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: Colors.grey,
                     ),
                     onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
+                      setState(() => _obscurePassword = !_obscurePassword);
                     },
                   ),
                 ),
               ),
-
-              // Remember me & Forgot password
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        onChanged: (value) {
-                          setState(() => _rememberMe = value ?? false);
-                        },
-                      ),
-                      const Text('Remember me'),
-                    ],
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      // Future: forgot password navigation
-                    },
-                    child: const Text('Forgot Password?'),
-                  ),
-                ],
-              ),
-
               const SizedBox(height: 20),
 
-              // Login button
+              // 🔹 Login Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -187,7 +207,14 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Text(
                           'Log In',
                           style: TextStyle(fontSize: 18, color: Colors.white),
@@ -197,14 +224,16 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 20),
 
-              // Create account
+              // 🔹 Create Account Link
               GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(context, '/signup');
-                },
+                onTap: _isLoading
+                    ? null
+                    : () {
+                        Navigator.pushNamed(context, '/signup');
+                      },
                 child: const Text.rich(
                   TextSpan(
-                    text: "Don’t have an account? ",
+                    text: "Don't have an account? ",
                     style: TextStyle(color: Colors.black),
                     children: [
                       TextSpan(
@@ -223,5 +252,12 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }

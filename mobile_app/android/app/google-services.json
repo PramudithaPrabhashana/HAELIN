@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "16469689697",
+    "project_id": "haelin",
+    "storage_bucket": "haelin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:16469689697:android:f687a9e0f52c56cf18b120",
+        "android_client_info": {
+          "package_name": "com.example.mobile_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAa0EoNI0TpW3Rt7ORwkR_u0Xg3ZnKV0fE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
