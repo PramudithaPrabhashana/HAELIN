@@ -219,7 +219,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
                             context,
                             MaterialPageRoute(
                                 builder: (context) =>
-                                    const DiagnoseScreen()),
+                                    const DiagnosisScreen()),
                           );
                         },
                       ),

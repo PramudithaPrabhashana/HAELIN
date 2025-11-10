@@ -17,7 +17,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final ScrollController _scrollController = ScrollController();
 
   // API URL
-  String get apiUrl => "http://127.0.0.1:8000/chat";
+  String get apiUrl => "http://localhost:8000/chat";
 
   Future<void> _sendMessage() async {
     final userMessage = _controller.text.trim();

@@ -35,6 +35,12 @@ dependencies:
   firebase_auth: ^5.3.1
   http: ^1.2.0
   shared_preferences: ^2.2.3
+  geolocator: ^11.0.1
+  permission_handler: ^11.0.1
+  url_launcher: ^6.2.2
+  cloud_firestore: ^5.6.12
+  google_maps_flutter: ^2.7.0
+
 
 
   # The following adds the Cupertino Icons font to your application.

@@ -1,10 +1,11 @@
+import 'dart:async' show TimeoutException;
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
-import 'home_dashboard.dart';
+import 'home_dashboard.dart'; // Adjust path if needed
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,146 +21,136 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  final String _baseUrl = "http://localhost:8080/haelin-app"; // 🔹 Update this to your backend
 
-  // Helper method to get the correct base URL based on platform
-  String getBaseUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8080/haelin-app';
-    } else {
-      return 'http://192.168.1.100:8080/haelin-app'; // Make sure to add /haelin-app here too
-    }
-  }
+  Future<void> _loginUser() async {
+  final email = _emailController.text.trim();
+  final password = _passwordController.text.trim();
 
- Future<void> _loginUser() async {
-  // Validate email and password
-  if (_emailController.text.trim().isEmpty ||
-      _passwordController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please enter both email and password")),
-    );
+  print("🚀 ===== LOGIN PROCESS STARTED =====");
+
+  if (email.isEmpty || password.isEmpty) {
+    _showSnack("Please enter both email and password", Colors.redAccent);
     return;
   }
 
   setState(() => _isLoading = true);
 
+  final client = http.Client();
+  
   try {
-    // 1️⃣ Login with Firebase Authentication
-    print('🟡 Step 1: Starting Firebase authentication...');
-    UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
+    // 🔹 Step 1: Firebase Authentication
+    print("1️⃣ Attempting Firebase authentication...");
+    final userCredential = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
     );
-    print('✅ Step 1: Firebase authentication successful');
 
-    // 2️⃣ Get the ID token from Firebase
-    print('🟡 Step 2: Getting Firebase ID token...');
-    String? idToken = await userCredential.user?.getIdToken();
-    if (idToken == null) throw Exception("Failed to get Firebase ID token");
-    print('✅ Step 2: Got Firebase ID token');
+    final user = userCredential.user;
+    if (user == null) throw Exception("Firebase user not found");
 
-    // 3️⃣ Send token to backend for verification
-    final String baseUrl = getBaseUrl();
-    final String loginUrl = '$baseUrl/user/login/patient';
+    print("✅ Firebase auth SUCCESSFUL!");
+    print("   👤 UID: ${user.uid}");
+    print("   📧 Email: ${user.email}");
+
+    // 🔹 Step 2: Get fresh Firebase ID token - UPDATED FOR NULL SAFETY
+    print("2️⃣ Getting Firebase ID token...");
+    final idToken = await user.getIdToken(true);
     
-    print('🟡 Step 3: Preparing backend request...');
-    print('🌐 URL: $loginUrl');
-    print('📧 User Email: ${userCredential.user?.email}');
+    // ✅ FIX: Proper null check
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception("Failed to get Firebase token - token is null or empty");
+    }
 
-    // 4️⃣ Send request to backend
-    print('🟡 Step 4: Sending request to backend...');
-    var response = await http.post(
-      Uri.parse(loginUrl),
+    print("✅ Token obtained successfully");
+    print("   🔐 Token length: ${idToken.length}");
+
+    // 🔹 Step 3: Send token to backend
+    print("3️⃣ Sending token to backend...");
+    final url = Uri.parse("$_baseUrl/user/login/patient");
+    print("   🌐 URL: $url");
+    
+    final currentOrigin = Uri.base.origin;
+    print("   📍 Current origin: $currentOrigin");
+
+    final response = await client.post(
+      url,
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Origin": currentOrigin,
       },
-      body: jsonEncode({
-        "idToken": idToken
-      }),
-    );
+      body: jsonEncode({"idToken": idToken}),
+    ).timeout(const Duration(seconds: 10));
 
-    print('✅ Step 4: Backend responded with status: ${response.statusCode}');
-    print('📄 Response body: ${response.body}');
+    print("📡 Backend Response:");
+    print("   📊 Status Code: ${response.statusCode}");
+    print("   📄 Body: ${response.body}");
 
-    // 5️⃣ Handle response
     if (response.statusCode == 200) {
-      var data = jsonDecode(response.body);
-      print('✅ Login successful');
-      print('👤 User data: ${data["user"]}');
+      final data = jsonDecode(response.body);
+      print("✅ Backend login SUCCESSFUL!");
       
-      // Extract username from response
-      String username = "User";
-      if (data["user"] != null && data["user"]["userName"] != null) {
-        username = data["user"]["userName"];
-      } else if (userCredential.user?.displayName != null) {
-        username = userCredential.user!.displayName!;
-      } else if (userCredential.user?.email != null) {
-        username = userCredential.user!.email!;
-      }
+      String username = data["user"]?["userName"] ??
+          user.displayName ??
+          user.email?.split('@').first ??
+          "User";
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Login Successful")),
-      );
-
-      // ✅ Navigate to HomeDashboard
+      _showSnack("Login successful", Colors.green);
+      
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => HomeDashboard(
-            username: username,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => HomeDashboard(username: username)),
       );
     } else {
-      print('❌ Backend error: ${response.statusCode}');
-      // Don't show "Access Denied" message for non-admin users
-      if (response.statusCode != 403) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Login failed: ${response.body}")),
-        );
-      }
+      print("❌ Backend error: ${response.statusCode}");
+      _showSnack("Login failed: ${response.body}", Colors.redAccent);
     }
+  } on FirebaseAuthException catch (e) {
+    print("🔴 Firebase Auth Exception: ${e.code}");
+    String msg;
+    switch (e.code) {
+      case 'invalid-email':
+        msg = "Invalid email address";
+        break;
+      case 'user-disabled':
+        msg = "This account has been disabled";
+        break;
+      case 'user-not-found':
+        msg = "No user found with this email";
+        break;
+      case 'wrong-password':
+        msg = "Incorrect password";
+        break;
+      default:
+        msg = "Authentication failed: ${e.message}";
+    }
+    _showSnack(msg, Colors.redAccent);
+  } on SocketException {
+    print("🔴 SocketException - Network error");
+    _showSnack("Network error: Cannot reach backend", Colors.redAccent);
+  } on TimeoutException {
+    print("🔴 TimeoutException - Backend not responding");
+    _showSnack("Connection timeout", Colors.orangeAccent);
   } catch (e) {
-    print('❌ Exception: $e');
-    print('❌ Exception type: ${e.runtimeType}');
-    
-    // Handle specific errors using if-else instead of multiple catch blocks
-    if (e is FirebaseAuthException) {
-      String errorMessage = "Login failed";
-      if (e.code == 'user-not-found') {
-        errorMessage = "No user found with this email";
-      } else if (e.code == 'wrong-password') {
-        errorMessage = "Incorrect password";
-      } else if (e.code == 'invalid-email') {
-        errorMessage = "Invalid email address";
-      } else if (e.code == 'user-disabled') {
-        errorMessage = "This account has been disabled";
-      } else if (e.code == 'too-many-requests') {
-        errorMessage = "Too many attempts. Try again later";
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
-    } else if (e is http.ClientException) {
-      // Handle HTTP client errors (network issues, etc.)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Network error: Cannot connect to server")),
-      );
-    } else if (e is FormatException) {
-      // Handle JSON parsing errors
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Data format error")),
-      );
-    } else {
-      // Handle all other errors
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
-    }
+    print("🔴 Unexpected error: $e");
+    _showSnack("Unexpected error: $e", Colors.redAccent);
   } finally {
+    client.close();
     setState(() => _isLoading = false);
+    print("🏁 ===== LOGIN PROCESS COMPLETED =====");
   }
 }
+
+  void _showSnack(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,119 +162,76 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 🔹 App Logo
-              Image.asset('assets/app_logo.png', width: 100, height: 100),
+              const Icon(Icons.local_hospital, size: 80, color: Colors.blueAccent),
               const SizedBox(height: 20),
-
               const Text(
-                'Welcome Back!',
+                "Haelin App Login",
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueAccent,
                 ),
               ),
               const SizedBox(height: 40),
 
-              // 🔹 Email Field
+              // Email field
               TextField(
                 controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Email',
-                  prefixIcon: const Icon(Icons.email),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 20,
-                  ),
+                  prefixIcon: Icon(Icons.email),
+                  border: OutlineInputBorder(),
                 ),
+                keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 20),
 
-              // 🔹 Password Field
+              // Password field
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 20,
-                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: Colors.grey,
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
                     ),
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
                     },
                   ),
+                  border: const OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 20),
 
-              // 🔹 Login Button
+              const SizedBox(height: 30),
+
+              // Login button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _loginUser,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF286BB5),
+                    backgroundColor: Colors.blueAccent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                          'Log In',
+                          'Login',
                           style: TextStyle(fontSize: 18, color: Colors.white),
                         ),
                 ),
               ),
 
               const SizedBox(height: 20),
-
-              // 🔹 Create Account Link
-              GestureDetector(
-                onTap: _isLoading
-                    ? null
-                    : () {
-                        Navigator.pushNamed(context, '/signup');
-                      },
-                child: const Text.rich(
-                  TextSpan(
-                    text: "Don't have an account? ",
-                    style: TextStyle(color: Colors.black),
-                    children: [
-                      TextSpan(
-                        text: 'Create one',
-                        style: TextStyle(
-                          color: Color(0xFF286BB5),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              Text(
+                "Backend: $_baseUrl",
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
               ),
             ],
           ),
