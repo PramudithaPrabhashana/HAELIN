@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_page.dart';
 import 'screens/home_dashboard.dart';
-import 'screens/signup_screen.dart';
+import 'screens/signup_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 

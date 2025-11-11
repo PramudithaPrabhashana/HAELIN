@@ -32,7 +32,7 @@ public class PredictController {
     @PostMapping("/chikun")
     public ResponseEntity<String> predictChikun(@RequestBody Map<String, Object> payload) {
         try {
-            String fastApiUrl = "http://127.0.0.1:8000/predict_chikun";
+            String fastApiUrl = "http://127.0.0.1:8085/predict_chikun";
             RestTemplate restTemplate = new RestTemplate();
 
             ResponseEntity<String> response = restTemplate.postForEntity(fastApiUrl, payload, String.class);
