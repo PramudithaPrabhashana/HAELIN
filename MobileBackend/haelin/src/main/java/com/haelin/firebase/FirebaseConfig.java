@@ -15,22 +15,17 @@ import java.io.IOException;
 @Configuration
 public class FirebaseConfig {
     @PostConstruct
-    public void init() {
-        try {
-            FileInputStream serviceAccount =
-                    new FileInputStream("src/main/resources/haelin-firebase-adminsdk-fbsvc-f9467bb92c.json");
+    public void init() throws IOException {
+        FileInputStream serviceAccount =
+                new FileInputStream("src/main/resources/haelin-firebase-adminsdk-fbsvc-6b7131bc61.json");
 
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .build();
+        FirebaseOptions options = FirebaseOptions.builder()
+                .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                .setDatabaseUrl("https://haelin.firebaseio.com")
+                .build();
 
-            if (FirebaseApp.getApps().isEmpty()) {
-                FirebaseApp.initializeApp(options);
-                System.out.println("Firebase initialized!");
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (FirebaseApp.getApps().isEmpty()) {
+            FirebaseApp.initializeApp(options);
         }
     }
 
@@ -38,4 +33,5 @@ public class FirebaseConfig {
     public Firestore firestore() {
         return FirestoreClient.getFirestore();
     }
+
 }
