@@ -17,7 +17,7 @@ public class FirebaseConfig {
     @PostConstruct
     public void init() throws IOException {
         FileInputStream serviceAccount =
-                new FileInputStream("src/main/resources/haelin-firebase-adminsdk-fbsvc-6b7131bc61.json");
+                new FileInputStream("src/main/resources/static/haelinFirebaseKey.json");
 
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
