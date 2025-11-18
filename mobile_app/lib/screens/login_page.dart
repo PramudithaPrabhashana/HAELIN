@@ -21,126 +21,125 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
-  final String _baseUrl = "http://localhost:8080/haelin-app"; // 🔹 Update this to your backend
+  final String _baseUrl = "http://localhost:8080/haelin-app"; // 🔹 Update to your backend
 
   Future<void> _loginUser() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-  print("🚀 ===== LOGIN PROCESS STARTED =====");
+    print("🚀 ===== LOGIN PROCESS STARTED =====");
 
-  if (email.isEmpty || password.isEmpty) {
-    _showSnack("Please enter both email and password", Colors.redAccent);
-    return;
-  }
-
-  setState(() => _isLoading = true);
-
-  final client = http.Client();
-  
-  try {
-    // 🔹 Step 1: Firebase Authentication
-    print("1️⃣ Attempting Firebase authentication...");
-    final userCredential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    final user = userCredential.user;
-    if (user == null) throw Exception("Firebase user not found");
-
-    print("✅ Firebase auth SUCCESSFUL!");
-    print("   👤 UID: ${user.uid}");
-    print("   📧 Email: ${user.email}");
-
-    // 🔹 Step 2: Get fresh Firebase ID token - UPDATED FOR NULL SAFETY
-    print("2️⃣ Getting Firebase ID token...");
-    final idToken = await user.getIdToken(true);
-    
-    // ✅ FIX: Proper null check
-    if (idToken == null || idToken.isEmpty) {
-      throw Exception("Failed to get Firebase token - token is null or empty");
+    if (email.isEmpty || password.isEmpty) {
+      _showSnack("Please enter both email and password", Colors.redAccent);
+      return;
     }
 
-    print("✅ Token obtained successfully");
-    print("   🔐 Token length: ${idToken.length}");
+    setState(() => _isLoading = true);
 
-    // 🔹 Step 3: Send token to backend
-    print("3️⃣ Sending token to backend...");
-    final url = Uri.parse("$_baseUrl/user/login/patient");
-    print("   🌐 URL: $url");
-    
-    final currentOrigin = Uri.base.origin;
-    print("   📍 Current origin: $currentOrigin");
+    final client = http.Client();
 
-    final response = await client.post(
-      url,
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Origin": currentOrigin,
-      },
-      body: jsonEncode({"idToken": idToken}),
-    ).timeout(const Duration(seconds: 10));
-
-    print("📡 Backend Response:");
-    print("   📊 Status Code: ${response.statusCode}");
-    print("   📄 Body: ${response.body}");
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      print("✅ Backend login SUCCESSFUL!");
-      
-      String username = data["user"]?["userName"] ??
-          user.displayName ??
-          user.email?.split('@').first ??
-          "User";
-
-      _showSnack("Login successful", Colors.green);
-      
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => HomeDashboard(username: username)),
+    try {
+      // 🔹 Step 1: Firebase Authentication
+      print("1️⃣ Attempting Firebase authentication...");
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-    } else {
-      print("❌ Backend error: ${response.statusCode}");
-      _showSnack("Login failed: ${response.body}", Colors.redAccent);
+
+      final User? user = userCredential.user;
+      if (user == null) throw Exception("Firebase user not found");
+
+      print("✅ Firebase auth SUCCESSFUL!");
+      print("   👤 UID: ${user.uid}");
+      print("   📧 Email: ${user.email}");
+
+      // 🔹 Step 2: Get fresh Firebase ID token
+      print("2️⃣ Getting Firebase ID token...");
+      final String? idToken = await user.getIdToken(true);
+
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception("Failed to get Firebase token - token is null or empty");
+      }
+
+      print("✅ Token obtained successfully");
+      print("   🔐 Token length: ${idToken.length}");
+
+      // 🔹 Step 3: Send token to backend
+      print("3️⃣ Sending token to backend...");
+      final url = Uri.parse("$_baseUrl/user/login/patient");
+      print("   🌐 URL: $url");
+
+      final currentOrigin = Uri.base.origin;
+      print("   📍 Current origin: $currentOrigin");
+
+      final response = await client.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Origin": currentOrigin,
+        },
+        body: jsonEncode({"idToken": idToken}),
+      ).timeout(const Duration(seconds: 10));
+
+      print("📡 Backend Response:");
+      print("   📊 Status Code: ${response.statusCode}");
+      print("   📄 Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        print("✅ Backend login SUCCESSFUL!");
+        String username = data["user"]?["userName"] ??
+            user.displayName ??
+            user.email?.split('@').first ??
+            "User";
+
+        _showSnack("Login successful", Colors.green);
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => HomeDashboard(username: username)),
+        );
+      } else {
+        print("❌ Backend error: ${response.statusCode}");
+        _showSnack("Login failed: ${response.body}", Colors.redAccent);
+      }
+    } on FirebaseAuthException catch (e) {
+      print("🔴 Firebase Auth Exception: ${e.code}");
+      String msg;
+      switch (e.code) {
+        case 'invalid-email':
+          msg = "Invalid email address";
+          break;
+        case 'user-disabled':
+          msg = "This account has been disabled";
+          break;
+        case 'user-not-found':
+          msg = "No user found with this email";
+          break;
+        case 'wrong-password':
+          msg = "Incorrect password";
+          break;
+        default:
+          msg = "Authentication failed: ${e.message}";
+      }
+      _showSnack(msg, Colors.redAccent);
+    } on SocketException {
+      print("🔴 SocketException - Network error");
+      _showSnack("Network error: Cannot reach backend", Colors.redAccent);
+    } on TimeoutException {
+      print("🔴 TimeoutException - Backend not responding");
+      _showSnack("Connection timeout", Colors.orangeAccent);
+    } catch (e) {
+      print("🔴 Unexpected error: $e");
+      _showSnack("Unexpected error: $e", Colors.redAccent);
+    } finally {
+      client.close();
+      setState(() => _isLoading = false);
+      print("🏁 ===== LOGIN PROCESS COMPLETED =====");
     }
-  } on FirebaseAuthException catch (e) {
-    print("🔴 Firebase Auth Exception: ${e.code}");
-    String msg;
-    switch (e.code) {
-      case 'invalid-email':
-        msg = "Invalid email address";
-        break;
-      case 'user-disabled':
-        msg = "This account has been disabled";
-        break;
-      case 'user-not-found':
-        msg = "No user found with this email";
-        break;
-      case 'wrong-password':
-        msg = "Incorrect password";
-        break;
-      default:
-        msg = "Authentication failed: ${e.message}";
-    }
-    _showSnack(msg, Colors.redAccent);
-  } on SocketException {
-    print("🔴 SocketException - Network error");
-    _showSnack("Network error: Cannot reach backend", Colors.redAccent);
-  } on TimeoutException {
-    print("🔴 TimeoutException - Backend not responding");
-    _showSnack("Connection timeout", Colors.orangeAccent);
-  } catch (e) {
-    print("🔴 Unexpected error: $e");
-    _showSnack("Unexpected error: $e", Colors.redAccent);
-  } finally {
-    client.close();
-    setState(() => _isLoading = false);
-    print("🏁 ===== LOGIN PROCESS COMPLETED =====");
   }
-}
 
   void _showSnack(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(

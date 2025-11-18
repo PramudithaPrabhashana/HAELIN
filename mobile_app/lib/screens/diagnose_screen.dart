@@ -16,8 +16,8 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
   Color? resultColor;
   String? guideMessage;
 
-  // ✅ Replace this with your actual FastAPI backend URL
-  final String baseUrl = "http://localhost:8001/haelin-app";
+  // ✅ Correct backend port for Flutter Web → Spring Boot mapping
+  final String baseUrl = "http://localhost:8080/haelin-app/predict";
 
   // Dengue symptoms
   Map<String, bool> dengueSymptoms = {
@@ -56,12 +56,15 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     });
 
     try {
+      // Spring Boot routes
       final endpoint = selectedDisease == "Dengue"
-          ? "$baseUrl/predict_dengue"
-          : "$baseUrl/predict_chikun";
+          ? "$baseUrl/dengue"
+          : "$baseUrl/chikun";
 
-      final selectedSymptoms = currentSymptoms.map((key, value) =>
-          MapEntry(key, value ? 1 : 0)); // convert bools to 0/1 for backend
+      // Convert bool → int
+      final selectedSymptoms = currentSymptoms.map(
+        (key, value) => MapEntry(key, value ? 1 : 0),
+      );
 
       final response = await http.post(
         Uri.parse(endpoint),
@@ -78,24 +81,24 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             diagnosisResult = "⚠️ You may be infected with $selectedDisease";
             resultColor = Colors.redAccent;
             guideMessage =
-                "Please consult a doctor immediately and stay hydrated. Avoid self-medication.";
+                "Please consult a doctor immediately and stay hydrated.";
           } else {
             diagnosisResult =
                 "✅ You are not likely infected with $selectedDisease";
             resultColor = Colors.green;
             guideMessage =
-                "Maintain good hygiene and rest well. Monitor symptoms and seek help if they worsen.";
+                "Continue to rest and monitor your health. Seek help if symptoms worsen.";
           }
         });
       } else {
         setState(() {
-          diagnosisResult = "❌ Server error: ${response.statusCode}";
+          diagnosisResult = "❌ Server Error: ${response.statusCode}";
           resultColor = Colors.grey;
         });
       }
     } catch (e) {
       setState(() {
-        diagnosisResult = "⚠️ Connection failed. Check your backend.";
+        diagnosisResult = "⚠️ Cannot reach server. Is Spring Boot running?";
         resultColor = Colors.orange;
       });
     } finally {
@@ -162,6 +165,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 10),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -180,7 +184,6 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
 
             const SizedBox(height: 20),
 
-            // Disease Dropdown
             DropdownButtonFormField<String>(
               value: selectedDisease,
               decoration: InputDecoration(
@@ -194,13 +197,13 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
               dropdownColor: Colors.white,
               items: const [
                 DropdownMenuItem(value: "Dengue", child: Text("Dengue")),
-                DropdownMenuItem(
-                    value: "Chikungunya", child: Text("Chikungunya")),
+                DropdownMenuItem(value: "Chikungunya", child: Text("Chikungunya")),
               ],
               onChanged: (value) => setState(() => selectedDisease = value!),
             ),
 
             const SizedBox(height: 25),
+
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -215,7 +218,6 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
 
             const SizedBox(height: 12),
 
-            // Symptoms list
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -261,7 +263,8 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 decoration: BoxDecoration(
                   color: resultColor?.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: resultColor ?? Colors.grey, width: 2),
+                  border:
+                      Border.all(color: resultColor ?? Colors.grey, width: 2),
                 ),
                 child: Column(
                   children: [
@@ -277,7 +280,8 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                     const SizedBox(height: 10),
                     Text(
                       guideMessage ?? "",
-                      style: const TextStyle(fontSize: 16, color: Colors.black87),
+                      style:
+                          const TextStyle(fontSize: 16, color: Colors.black87),
                       textAlign: TextAlign.center,
                     ),
                   ],

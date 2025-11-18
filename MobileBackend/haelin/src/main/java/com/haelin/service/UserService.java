@@ -117,31 +117,47 @@ public class UserService {
     }
 
     public User verifyToken(String idToken) throws Exception {
-        // Verify the Firebase ID token
-        FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+        if (idToken == null || idToken.trim().isEmpty()) {
+            throw new Exception("ID token is required");
+        }
+
+        // 1️⃣ Verify Firebase ID token
+        FirebaseToken decodedToken;
+        try {
+            decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+        } catch (Exception e) {
+            throw new Exception("Invalid or expired Firebase token: " + e.getMessage());
+        }
+
         String uid = decodedToken.getUid();
 
-        // Fetch the user record from Firestore
+        // 2️⃣ Fetch the user from Firestore
         Firestore db = FirestoreClient.getFirestore();
-        DocumentSnapshot doc = db.collection("users").document(uid).get().get();
+        DocumentSnapshot doc;
+        try {
+            doc = db.collection("users").document(uid).get().get();
+        } catch (Exception e) {
+            throw new Exception("Error fetching user from Firestore: " + e.getMessage());
+        }
 
         if (!doc.exists()) {
-            throw new Exception("User not found in Firestore");
+            throw new Exception("User not found in Firestore for UID: " + uid);
         }
 
         User user = doc.toObject(User.class);
-
         if (user == null) {
-            throw new Exception("Failed to parse user data");
+            throw new Exception("Failed to parse Firestore user data");
         }
 
-        // (Optional) check if email from token matches Firestore data
-        if (!decodedToken.getEmail().equalsIgnoreCase(user.getUserEmail())) {
-            throw new Exception("Token mismatch: user email doesn't match Firestore record");
+        // 3️⃣ Optional: Log if token email differs from Firestore email
+        if (user.getUserEmail() != null &&
+                !user.getUserEmail().trim().equalsIgnoreCase(decodedToken.getEmail().trim())) {
+            System.out.println("⚠️ Warning: token email and Firestore email differ");
         }
 
-        // Return the authenticated user object
+        // 4️⃣ Return user object
         return user;
     }
+
 
 }
