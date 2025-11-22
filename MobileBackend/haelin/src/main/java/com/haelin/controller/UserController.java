@@ -55,62 +55,60 @@ public class UserController {
         }
     }
 
-    // =================== LOGIN - Verify Firebase Token ===================
+    // =================== LOGIN - Admin ===================
     @PostMapping("/login/admin")
-    public ResponseEntity<?> login(@RequestBody UserLoginRequest request) {
+    public ResponseEntity<?> loginAdmin(@RequestBody UserLoginRequest request) {
         try {
             String idToken = request.getIdToken();
-
             if (idToken == null || idToken.trim().isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("ID token is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ID token is required");
             }
 
             User user = userService.verifyToken(idToken);
 
-            // Check if user is admin
-            if ("ADMIN".equalsIgnoreCase(user.getUserRole())) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("message", "Login successful");
-                response.put("user", user);
-                response.put("isAdmin", true);
-
-                return ResponseEntity.ok(response);
-            } else {
+            // Check role
+            if (!"ADMIN".equalsIgnoreCase(user.getUserRole())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body("Access denied: Admin privileges required");
             }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Login successful");
+            response.put("user", user);
+            response.put("isAdmin", true);
+
+            return ResponseEntity.ok(response);
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Login failed: " + e.getMessage());
         }
     }
 
-    // =================== LOGIN - Verify Firebase Token (Patient) ===================
+    // =================== LOGIN - Patient ===================
     @PostMapping("/login/patient")
     public ResponseEntity<?> loginPatient(@RequestBody UserLoginRequest request) {
         try {
             String idToken = request.getIdToken();
-
             if (idToken == null || idToken.trim().isEmpty()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("ID token is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ID token is required");
             }
 
             User user = userService.verifyToken(idToken);
 
-            // Check if user is patient
-            if ("PATIENT".equalsIgnoreCase(user.getUserRole())) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("message", "Login successful");
-                response.put("user", user);
-                response.put("isPatient", true);
-
-                return ResponseEntity.ok(response);
-            } else {
+            // Check role
+            if (!"PATIENT".equalsIgnoreCase(user.getUserRole())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body("Access denied: Patient privileges required");
             }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Login successful");
+            response.put("user", user);
+            response.put("isPatient", true);
+
+            return ResponseEntity.ok(response);
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Login failed: " + e.getMessage());

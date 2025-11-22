@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 
@@ -13,13 +14,19 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  GoogleMapController? mapController;
   Position? _currentPosition;
   bool _isLoading = false;
   bool _locationEnabled = false;
   List<dynamic> _hospitals = [];
 
-  final String baseUrl = "http://10.0.2.2:8080/haelin-app"; // backend URL
+  final String baseUrl = "http://localhost:8080/haelin-app"; // backend URL
+  late final MapController _mapController;
+
+  @override
+  void initState() {
+    super.initState();
+    _mapController = MapController();
+  }
 
   Future<void> _enableLocation() async {
     setState(() => _isLoading = true);
@@ -35,12 +42,16 @@ class _MapScreenState extends State<MapScreen> {
       });
 
       await _fetchNearbyHospitals(position.latitude, position.longitude);
-      mapController?.animateCamera(CameraUpdate.newLatLngZoom(
-          LatLng(position.latitude, position.longitude), 13));
+
+      // Move map to current location
+      _mapController.move(
+        LatLng(position.latitude, position.longitude),
+        13.0,
+      );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Location permission denied."),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Location permission denied.")),
+      );
     }
 
     setState(() => _isLoading = false);
@@ -48,8 +59,9 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _fetchNearbyHospitals(double lat, double lon) async {
     try {
-      final response = await http.get(Uri.parse(
-          "$baseUrl/map/hospitals?lat=$lat&lon=$lon&radius=5000"));
+      final response = await http.get(
+        Uri.parse("$baseUrl/map/hospitals?lat=$lat&lon=$lon&radius=5000"),
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -71,103 +83,57 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Set<Marker> _buildMarkers() {
-    final markers = <Marker>{};
-
-    if (_currentPosition != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('me'),
-        position:
-            LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: const InfoWindow(title: "You are here"),
-      ));
-    }
-
-    for (var h in _hospitals) {
-      final tags = h['tags'];
-      final name = tags['name'] ?? 'Hospital';
-      final lat = h['lat'] ?? 0.0;
-      final lon = h['lon'] ?? 0.0;
-
-      markers.add(Marker(
-        markerId: MarkerId(name),
-        position: LatLng(lat, lon),
-        infoWindow: InfoWindow(title: name),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      ));
-    }
-
-    return markers;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: LatLng(6.9271, 79.8612),
-              zoom: 12,
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _currentPosition != null
+                  ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                  : LatLng(6.9271, 79.8612),
+              initialZoom: 13.0,
+              maxZoom: 18.0,
             ),
-            onMapCreated: (controller) => mapController = controller,
-            myLocationEnabled: _locationEnabled,
-            markers: _buildMarkers(),
-            zoomControlsEnabled: false,
-            myLocationButtonEnabled: false,
-          ),
-
-          // 🔹 Top bar
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildIconButton(Icons.arrow_back, () {}),
-                  const Image(
-                    image: AssetImage('assets/logo.png'),
-                    height: 40,
-                  ),
-                  _buildIconButton(Icons.menu, () {}),
-                ],
+            children: [
+              TileLayer(
+                urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                subdomains: const ['a', 'b', 'c'],
+                userAgentPackageName: 'com.example.haelin',
               ),
-            ),
-          ),
-
-          // 🔹 Search bar
-          Positioned(
-            top: 80,
-            left: 30,
-            right: 30,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFF286BB5), width: 1),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.search, color: Colors.black54),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      "Colombo",
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 18,
+              MarkerLayer(
+                markers: [
+                  if (_currentPosition != null)
+                    Marker(
+                      point: LatLng(
+                          _currentPosition!.latitude, _currentPosition!.longitude),
+                      width: 40,
+                      height: 40,
+                      child: const Icon(
+                        Icons.person_pin_circle,
+                        color: Colors.blue,
+                        size: 40,
                       ),
                     ),
-                  )
+                  for (var h in _hospitals)
+                    Marker(
+                      point: LatLng(h['lat'] ?? 0.0, h['lon'] ?? 0.0),
+                      width: 40,
+                      height: 40,
+                      child: const Icon(
+                        Icons.local_hospital,
+                        color: Colors.red,
+                        size: 40,
+                      ),
+                    ),
                 ],
               ),
-            ),
+            ],
           ),
 
-          // 🔹 Draggable Bottom Sheet (Hospitals)
+          // 🔹 Draggable Bottom Sheet for Hospitals
           if (_locationEnabled)
             DraggableScrollableSheet(
               initialChildSize: 0.2,
@@ -175,17 +141,13 @@ class _MapScreenState extends State<MapScreen> {
               maxChildSize: 0.6,
               builder: (context, scrollController) {
                 return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: const BoxDecoration(
                     color: Colors.white,
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(25)),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
                     boxShadow: [
                       BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          offset: Offset(0, -2))
+                          color: Colors.black26, blurRadius: 10, offset: Offset(0, -2))
                     ],
                   ),
                   child: Column(
@@ -213,17 +175,16 @@ class _MapScreenState extends State<MapScreen> {
                             ? const Center(
                                 child: Text(
                                   "No hospitals found nearby.",
-                                  style: TextStyle(
-                                      fontSize: 16, color: Colors.grey),
+                                  style: TextStyle(fontSize: 16, color: Colors.grey),
                                 ),
                               )
                             : ListView.builder(
                                 controller: scrollController,
                                 itemCount: _hospitals.length,
                                 itemBuilder: (context, index) {
-                                  final name = _hospitals[index]['tags']
-                                          ?['name'] ??
-                                      'Unnamed Hospital';
+                                  final name =
+                                      _hospitals[index]['tags']?['name'] ??
+                                          'Unnamed Hospital';
                                   return _buildHospitalTile(name);
                                 },
                               ),
@@ -291,25 +252,6 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildIconButton(IconData icon, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 6,
-          )
-        ],
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.black87),
-        onPressed: onPressed,
       ),
     );
   }
