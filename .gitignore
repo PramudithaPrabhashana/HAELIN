@@ -61,3 +61,4 @@ pip-delete-this-directory.txt
 # OS generated files
 Thumbs.db
 mobile_app/macos/Flutter/GeneratedPluginRegistrant.swift
+MobileBackend/Chatbot/.env
