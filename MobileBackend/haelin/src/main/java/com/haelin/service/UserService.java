@@ -19,16 +19,12 @@ import java.util.concurrent.ExecutionException;
 @Service
 public class UserService {
 
-    private static final String COLLECTION_NAME = "users";
+    private static final String COLLECTION_NAME = "info";
 
 
 
     // Add a new user
     public String signup(User user) throws Exception {
-        // Validate role
-        if (!"ADMIN".equalsIgnoreCase(user.getUserRole()) && !"PATIENT".equalsIgnoreCase(user.getUserRole())) {
-            return "Invalid role. Must be either ADMIN or PATIENT.";
-        }
 
         // 1. Create user in Firebase Auth
         UserRecord.CreateRequest request = new UserRecord.CreateRequest()
