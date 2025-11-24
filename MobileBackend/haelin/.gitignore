@@ -31,4 +31,4 @@ build/
 
 ### VS Code ###
 .vscode/
-/src/main/resources/static/haelinFirebaseKey.json
+/src/main/resources/haelinFirebaseKey.json
