@@ -31,14 +31,14 @@ public class UserController {
     // =================== MOBILE SIGNUP (Patient) ===================
     @PostMapping("/signup/mobile")
     public String signupMobile(@RequestBody User user) throws Exception {
-        user.setUserRole("PATIENT");
+        user.setRole("PATIENT");
         return userService.signup(user);
     }
 
     // =================== WEB SIGNUP (Admin) ===================
     @PostMapping("/signup/web")
     public String signupWeb(@RequestBody User user) throws Exception {
-        user.setUserRole("ADMIN");
+        user.setRole("ADMIN");
         return userService.signup(user);
     }
 
@@ -67,7 +67,7 @@ public class UserController {
             User user = userService.verifyToken(idToken);
 
             // Check role
-            if (!"ADMIN".equalsIgnoreCase(user.getUserRole())) {
+            if (!"ADMIN".equalsIgnoreCase(user.getRole())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body("Access denied: Admin privileges required");
             }
@@ -97,7 +97,7 @@ public class UserController {
             User user = userService.verifyToken(idToken);
 
             // Check role
-            if (!"PATIENT".equalsIgnoreCase(user.getUserRole())) {
+            if (!"PATIENT".equalsIgnoreCase(user.getRole())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body("Access denied: Patient privileges required");
             }
@@ -119,7 +119,7 @@ public class UserController {
     @GetMapping("/all")
     public List<User> getAllUsers(@RequestHeader("Authorization") String authHeader) throws Exception {
         User currentUser = userService.verifyToken(authHeader.replace("Bearer ", ""));
-        if (!"ADMIN".equalsIgnoreCase(currentUser.getUserRole())) {
+        if (!"ADMIN".equalsIgnoreCase(currentUser.getRole())) {
             throw new RuntimeException("Access denied: Admins only");
         }
 
@@ -164,7 +164,7 @@ public class UserController {
             User currentUser = userService.verifyToken(authHeader.replace("Bearer ", ""));
 
             // Only Admin or the same user can update
-            if (!"ADMIN".equalsIgnoreCase(currentUser.getUserRole()) && !currentUser.getUserId().equals(uid)) {
+            if (!"ADMIN".equalsIgnoreCase(currentUser.getRole()) && !currentUser.getUserId().equals(uid)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body("Access denied: You cannot update this user");
             }
@@ -186,7 +186,7 @@ public class UserController {
             User currentUser = userService.verifyToken(authHeader.replace("Bearer ", ""));
 
             // Only Admin can delete
-            if (!"ADMIN".equalsIgnoreCase(currentUser.getUserRole())) {
+            if (!"ADMIN".equalsIgnoreCase(currentUser.getRole())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body("Access denied: Admins only");
             }
