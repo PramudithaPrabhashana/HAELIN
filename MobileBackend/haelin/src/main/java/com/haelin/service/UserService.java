@@ -19,7 +19,7 @@ import java.util.concurrent.ExecutionException;
 @Service
 public class UserService {
 
-    private static final String COLLECTION_NAME = "users";
+    private static final String COLLECTION_NAME = "info";
 
 
 
