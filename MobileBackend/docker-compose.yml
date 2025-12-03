@@ -1,0 +1,32 @@
+
+services:
+  haelin:
+    build: ./haelin
+    container_name: haelin_springboot
+    ports:
+      - "8080:8080"
+    depends_on:
+      - chatbot
+      - dengue
+      - chikun
+
+  chatbot:
+    build:
+      context: ./Chatbot
+    container_name: fastapi_chatbot
+    ports:
+      - "8000:8000"
+
+  dengue:
+    build:
+      context: ./Dengue_FastAPI
+    container_name: fastapi_dengue
+    ports:
+      - "8001:8000"
+
+  chikun:
+    build:
+      context: ./Chikun_FastAPI
+    container_name: fastapi_chikun
+    ports:
+      - "8002:8000"
