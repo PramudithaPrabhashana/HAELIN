@@ -25,6 +25,10 @@ public class UserService {
 
     // Add a new user
     public String signup(User user) throws Exception {
+        // Validate role
+        if (!"ADMIN".equalsIgnoreCase(user.getRole()) && !"PATIENT".equalsIgnoreCase(user.getRole())) {
+            return "Invalid role. Must be either ADMIN or PATIENT.";
+        }
 
         // 1. Create user in Firebase Auth
         UserRecord.CreateRequest request = new UserRecord.CreateRequest()
@@ -40,7 +44,7 @@ public class UserService {
         Firestore db = FirestoreClient.getFirestore();
         db.collection("users").document(uid).set(user).get();
 
-        return "User created successfully with UID: " + uid + " and role: " + user.getUserRole();
+        return "User created successfully with UID: " + uid + " and role: " + user.getRole();
     }
 
 

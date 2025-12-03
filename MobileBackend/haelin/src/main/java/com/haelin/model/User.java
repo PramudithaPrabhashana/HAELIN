@@ -8,7 +8,7 @@ public class User {
     private String userAddress;
     private String userContact;
     private String userPassword;
-    private String userRole;
+    private String role;
 
     // Empty constructor required for Firestore
     public User() {
@@ -23,7 +23,7 @@ public class User {
         this.userAddress = userAddress;
         this.userContact = userContact;
         this.userPassword = userPassword;
-        this.userRole = userRole;
+        this.role = role;
     }
 
     public String getUserId() { return userId; }
@@ -47,6 +47,6 @@ public class User {
     public String getUserPassword() { return userPassword; }
     public void setUserPassword(String userPassword) { this.userPassword = userPassword; }
 
-    public String getUserRole() { return userRole; }
-    public void setUserRole(String userRole) { this.userRole = userRole; }
+    public String getRole() { return role; }
+    public void setRole(String userRole) { this.role = role; }
 }
