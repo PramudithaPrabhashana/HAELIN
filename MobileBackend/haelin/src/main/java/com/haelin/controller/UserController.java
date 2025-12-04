@@ -2,12 +2,9 @@ package com.haelin.controller;
 
 import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseToken;
 import com.haelin.model.User;
 import com.haelin.model.UserLoginRequest;
 import com.haelin.service.UserService;
-import com.google.firebase.auth.UserRecord;
 import com.google.firebase.cloud.FirestoreClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -139,7 +136,7 @@ public class UserController {
             User user = userService.getUser(userId);
 
             if (user != null) {
-                System.out.println("User found: " + user.getUserName());
+                System.out.println("User found: " + user.getName());
                 return ResponseEntity.ok(user);
             } else {
                 System.out.println("User not found with ID: " + userId);
