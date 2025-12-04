@@ -3,7 +3,6 @@ package com.haelin.service;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import com.google.firebase.auth.UserRecord;
 import com.google.firebase.cloud.FirestoreClient;
@@ -19,9 +18,7 @@ import java.util.concurrent.ExecutionException;
 @Service
 public class UserService {
 
-    private static final String COLLECTION_NAME = "info";
-
-
+    private static final String COLLECTION_NAME = "users";
 
     // Add a new user
     public String signup(User user) throws Exception {
@@ -32,15 +29,15 @@ public class UserService {
 
         // 1. Create user in Firebase Auth
         UserRecord.CreateRequest request = new UserRecord.CreateRequest()
-                .setEmail(user.getUserEmail())
-                .setPassword(user.getUserPassword());
+                .setEmail(user.getEmail())
+                .setPassword(user.getPassword());
 
         UserRecord firebaseUser = FirebaseAuth.getInstance().createUser(request);
         String uid = firebaseUser.getUid();
 
         // 2. Store additional details in Firestore
         user.setUserId(uid);           // use Firebase UID as doc ID
-        user.setUserPassword(null);    // don't store password in Firestore
+        user.setPassword(null);    // don't store password in Firestore
         Firestore db = FirestoreClient.getFirestore();
         db.collection("users").document(uid).set(user).get();
 
@@ -85,12 +82,12 @@ public class UserService {
 
         // Build a map of only non-null fields
         Map<String, Object> updates = new HashMap<>();
-        if (user.getUserName() != null) updates.put("userName", user.getUserName());
-        if (user.getUserNic() != null) updates.put("userNic", user.getUserNic());
-        if (user.getUserEmail() != null) updates.put("userEmail", user.getUserEmail());
-        if (user.getUserAddress() != null) updates.put("userAddress", user.getUserAddress());
-        if (user.getUserContact() != null) updates.put("userContact", user.getUserContact());
-        if (user.getUserPassword() != null) updates.put("userPassword", user.getUserPassword());
+        if (user.getName() != null) updates.put("userName", user.getName());
+        if (user.getNic() != null) updates.put("userNic", user.getNic());
+        if (user.getEmail() != null) updates.put("userEmail", user.getEmail());
+        if (user.getCity() != null) updates.put("userAddress", user.getCity());
+        if (user.getContact() != null) updates.put("userContact", user.getContact());
+        if (user.getPassword() != null) updates.put("userPassword", user.getPassword());
 
         if (updates.isEmpty()) {
             return "No fields to update.";
@@ -150,8 +147,8 @@ public class UserService {
         }
 
         // 3️⃣ Optional: Log if token email differs from Firestore email
-        if (user.getUserEmail() != null &&
-                !user.getUserEmail().trim().equalsIgnoreCase(decodedToken.getEmail().trim())) {
+        if (user.getEmail() != null &&
+                !user.getEmail().trim().equalsIgnoreCase(decodedToken.getEmail().trim())) {
             System.out.println("⚠️ Warning: token email and Firestore email differ");
         }
 

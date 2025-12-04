@@ -1,52 +1,59 @@
 package com.haelin.model;
 
+import java.util.Date;
+
 public class User {
     private String userId;
-    private String userName;
-    private String userNic;
-    private String userEmail;
-    private String userAddress;
-    private String userContact;
-    private String userPassword;
+    private String name;
+    private String nic;
+    private String email;
+    private String city;
+    private String contact;
+    private String password;
     private String role;
+    private Date createdAt;
 
     // Empty constructor required for Firestore
     public User() {
     }
 
-    public User(String userId, String userName, String userNic, String userEmail,
-                String userAddress, String userContact, String userPassword) {
+    public User(String userId, String name, String nic, String email,
+                String city, String contact, String password, Date createdAt) {
         this.userId = userId;
-        this.userName = userName;
-        this.userNic = userNic;
-        this.userEmail = userEmail;
-        this.userAddress = userAddress;
-        this.userContact = userContact;
-        this.userPassword = userPassword;
+        this.name = name;
+        this.nic = nic;
+        this.email = email;
+        this.city = city;
+        this.contact = contact;
+        this.password = password;
         this.role = role;
+        this.createdAt = createdAt;
     }
 
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
 
-    public String getUserName() { return userName; }
-    public void setUserName(String userName) { this.userName = userName; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public String getUserNic() { return userNic; }
-    public void setUserNic(String userNic) { this.userNic = userNic; }
+    public String getNic() { return nic; }
+    public void setNic(String nic) { this.nic = nic; }
 
-    public String getUserEmail() { return userEmail; }
-    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getUserAddress() { return userAddress; }
-    public void setUserAddress(String userAddress) { this.userAddress = userAddress; }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
 
-    public String getUserContact() { return userContact; }
-    public void setUserContact(String userContact) { this.userContact = userContact; }
+    public String getContact() { return contact; }
+    public void setContact(String contact) { this.contact = contact; }
 
-    public String getUserPassword() { return userPassword; }
-    public void setUserPassword(String userPassword) { this.userPassword = userPassword; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
     public String getRole() { return role; }
-    public void setRole(String userRole) { this.role = role; }
+    public void setRole(String role) { this.role = role; }
+
+    public Date getCreatedAt() {return createdAt;}
+    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
 }
